@@ -1061,55 +1061,48 @@
         // ================================================================
         // 12. TABLEAU DES ALERTES
         // ================================================================
-        function updateAlertsTable(suffix) {
-            const tbody = document.getElementById(`alerts-table-body-${suffix}`);
-            const alertTxns = allTransactions
-                .filter(t => (t.risk_score || 0) >= 66)
-                .slice(0, suffix === 'all' ? 50 : 20);
+     function updateAlertsTable(suffix) {
+    const tbody = document.getElementById(`alerts-table-body-${suffix}`);
+    const alertTxns = allTransactions
+        .filter(t => (t.risk_score || 0) >= 66)
+        .slice(0, suffix === 'all' ? 50 : 20);
 
-            if (alertTxns.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-400 py-4">✅ Aucune alerte</td></tr>`;
-                return;
-            }
+    if (alertTxns.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-400 py-4">✅ Aucune alerte</td></tr>`;
+        return;
+    }
 
-            let html = '';
-            alertTxns.forEach(txn => {
-                const alert = allAlerts.find(a => a.transaction_id === txn.id);
-                const decision = alert?.analyst_decision || 'pending';
-                const severity = (txn.risk_score || 0) >= 80 ? 'CRITICAL' : 'HIGH';
+    let html = '';
+    alertTxns.forEach(txn => {
+        const alert = allAlerts.find(a => a.transaction_id === txn.id);
+        const decision = alert?.analyst_decision || 'pending';
+        const severity = (txn.risk_score || 0) >= 80 ? 'CRITICAL' : 'HIGH';
 
-                let severityBadge = '';
-                if (severity === 'CRITICAL') severityBadge =
-                    `<span class="badge-severity bg-red-light">⚠️ Critique</span>`;
-                else severityBadge = `<span class="badge-severity bg-orange-light">⚡ Élevée</span>`;
+        // ... (le reste reste identique)
 
-                let statusBadge = '';
-                if (decision === 'confirmed_fraud') statusBadge =
-                    `<span class="text-red-600 font-semibold">Fraude</span>`;
-                else if (decision === 'false_positive') statusBadge =
-                    `<span class="text-emerald-600 font-semibold">Faux Positif</span>`;
-                else statusBadge = `<span class="text-gray-400">En attente</span>`;
+        // ✅ CORRECTION ICI :
+        const idDisplay = String(txn.id ?? "").slice(0, 8) || 'N/A';
 
-                html += `
-                            <tr class="hover:bg-gray-50 cursor-pointer ${selectedAlertId === txn.id ? 'bg-indigo-50' : ''}" 
-                                data-txn-id="${txn.id}" onclick="openDetail('${txn.id}')">
-                                <td class="px-4 py-2 font-mono text-xs">${txn.id?.slice(0,8) || 'N/A'}</td>
-                                <td class="px-4 py-2">${txn.customer_name || 'Inconnu'}</td>
-                                <td class="px-4 py-2 font-medium">${txn.amount?.toFixed(0) || 0} MAD</td>
-                                <td class="px-4 py-2 font-bold ${(txn.risk_score || 0) >= 66 ? 'text-red-600' : 'text-gray-600'}">${txn.risk_score || 0}</td>
-                                <td class="px-4 py-2">${severityBadge}</td>
-                                <td class="px-4 py-2">${statusBadge}</td>
-                                <td class="px-4 py-2">
-                                    <button onclick="event.stopPropagation(); openDetail('${txn.id}')" 
-                                        class="text-indigo-600 hover:text-indigo-900 text-xs font-medium">
-                                        <i class="fas fa-chevron-right"></i> Détail
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-            });
-            tbody.innerHTML = html;
-        }
+        html += `
+            <tr class="hover:bg-gray-50 cursor-pointer ${selectedAlertId === txn.id ? 'bg-indigo-50' : ''}" 
+                data-txn-id="${txn.id}" onclick="openDetail('${txn.id}')">
+                <td class="px-4 py-2 font-mono text-xs">${idDisplay}</td>
+                <td class="px-4 py-2">${txn.customer_name || 'Inconnu'}</td>
+                <td class="px-4 py-2 font-medium">${txn.amount?.toFixed(0) || 0} MAD</td>
+                <td class="px-4 py-2 font-bold ${(txn.risk_score || 0) >= 66 ? 'text-red-600' : 'text-gray-600'}">${txn.risk_score || 0}</td>
+                <td class="px-4 py-2">${severityBadge}</td>
+                <td class="px-4 py-2">${statusBadge}</td>
+                <td class="px-4 py-2">
+                    <button onclick="event.stopPropagation(); openDetail('${txn.id}')" 
+                        class="text-indigo-600 hover:text-indigo-900 text-xs font-medium">
+                        <i class="fas fa-chevron-right"></i> Détail
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+}
 
         function updateAlertCounts() {
             const count = allTransactions.filter(t => (t.risk_score || 0) >= 66).length;
