@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BankShield AI – Dashboard Officiel</title>
-    <!-- Utilisation du CDN Tailwind pour le prototype -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -173,51 +172,74 @@
         let selectedAlertId = null;
         let chartInstances = {};
 
-        // 2. CHARGEMENT DES DONNÉES
+        // 2. CHARGEMENT DES DONNÉES (Adapté au nouveau schéma)
         async function loadData() {
             const statusEl = document.getElementById('connection-status');
             statusEl.textContent = 'Connexion...';
             
             try {
-                // Récupération des trois tables
-                const [txnRes, alertRes, custRes] = await Promise.all([
+                // Récupération des 4 tables
+                const [txnRes, riskRes, alertRes, custRes] = await Promise.all([
                     supabaseClient.from('transactions').select('*').order('timestamp', { ascending: false }).limit(100),
-                    supabaseClient.from('alerts').select('*').order('alert_id', { ascending: false }),
+                    supabaseClient.from('risk_evaluations').select('*'),
+                    supabaseClient.from('fraud_alerts').select('*').order('alert_id', { ascending: false }),
                     supabaseClient.from('customers').select('*')
                 ]);
 
-                if (txnRes.error || alertRes.error || custRes.error) throw new Error("Erreur supabase");
+                if (txnRes.error) throw new Error("Erreur sur transactions: " + txnRes.error.message);
+                if (riskRes.error) throw new Error("Erreur sur risk_evaluations: " + riskRes.error.message);
+                if (alertRes.error) throw new Error("Erreur sur fraud_alerts: " + alertRes.error.message);
+                if (custRes.error) throw new Error("Erreur sur customers: " + custRes.error.message);
 
-                allTransactions = txnRes.data || [];
-                allAlerts = alertRes.data || [];
-                allCustomers = custRes.data || [];
+                const txnsData = txnRes.data || [];
+                const riskData = riskRes.data || [];
+                const alertsData = alertRes.data || [];
+                const custData = custRes.data || [];
 
-                // Mapping Clients
+                // Création des Maps pour la jointure
                 const custMap = {};
-                allCustomers.forEach(c => custMap[c.customer_id] = c);
+                custData.forEach(c => custMap[c.customer_id] = c);
 
-                // Normalisation Transactions
-                allTransactions = allTransactions.map(t => {
+                const riskMap = {};
+                riskData.forEach(r => riskMap[r.transaction_id] = r);
+
+                const alertMap = {};
+                alertsData.forEach(a => alertMap[a.transaction_id] = a);
+
+                // Fusion des données en un seul objet
+                allTransactions = txnsData.map(t => {
                     const cust = custMap[t.customer_id] || {};
-                    const alert = allAlerts.find(a => a.transaction_id === t.transaction_id) || {};
-                    
+                    const risk = riskMap[t.transaction_id] || {};
+                    const alert = alertMap[t.transaction_id] || {};
+
                     return {
                         ...t,
-                        // ⚠️ CORRECTION : N'utilisez JAMAIS .slice() sur id (BIGSERIAL), utilisez transaction_id
+                        // Identifiant d'affichage
                         display_id: String(t.transaction_id ?? "").slice(0, 10),
+                        
+                        // Informations Client
                         customer_name: cust.full_name || 'Client Inconnu',
-                        city: t.city || cust.city || 'Inconnue',
-                        phone: cust.phone || 'Non renseigné',
-                        currency: t.currency || 'MAD',
-                        // Règles et décisions depuis la table alerts
-                        triggered_rules: alert.triggered_rules || [],
-                        applied_mitigations: alert.applied_mitigations || [],
-                        ai_summary: alert.ai_summary || 'Analyse IA en cours...',
-                        ai_action_recommendation: alert.ai_action_recommendation || 'Vérification manuelle requise.',
-                        analyst_decision: alert.analyst_decision || 'pending',
-                        severity_db: alert.severity || t.risk_level
+                        home_city: cust.home_city || 'Inconnue',
+                        phone: cust.phone_number || 'Non renseigné',
+                        
+                        // Données de Risque (depuis risk_evaluations)
+                        risk_score: risk.risk_score || 0,
+                        risk_level: risk.risk_level || 'LOW',
+                        triggered_rules: risk.triggered_rules || [],
+                        applied_mitigations: risk.applied_mitigations || [],
+                        engine_decision: risk.engine_decision || 'APPROVED',
+                        
+                        // Données d'Alerte (depuis fraud_alerts)
+                        severity_db: alert.severity || risk.risk_level || 'MEDIUM',
+                        ai_summary: alert.ai_investigation_summary || 'Analyse IA en cours...',
+                        ai_action_recommendation: alert.ai_recommendation || 'Vérification manuelle requise.',
+                        analyst_decision: alert.analyst_decision || 'PENDING',
+                        alert_id: alert.alert_id || null
                     };
                 });
+
+                allAlerts = alertsData;
+                allCustomers = custData;
 
                 statusEl.textContent = '✅ Supabase Connectée';
                 statusEl.className = 'px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800';
@@ -225,7 +247,7 @@
                 updateAll();
             } catch (error) {
                 console.error("Erreur globale :", error);
-                statusEl.textContent = '❌ Erreur';
+                statusEl.textContent = '❌ ' + error.message;
                 statusEl.className = 'px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800';
             }
         }
@@ -246,19 +268,19 @@
             // KPI 1: Volume Total
             const volume = txns.length;
             // KPI 2: Taux d'Anomalies (%)
-            const anomalies = txns.filter(t => t.is_anomaly).length;
+            const anomalies = txns.filter(t => t.risk_score >= 65).length;
             const tauxAnomalies = volume > 0 ? (anomalies / volume * 100).toFixed(1) + '%' : '0%';
             // KPI 3: Score Moyen
             const scoreMoyen = volume > 0 ? (txns.reduce((s, t) => s + (t.risk_score || 0), 0) / volume).toFixed(1) : '0';
             // KPI 4: Alertes Critiques Ouvertes
-            const alertesCritiques = alerts.filter(a => a.severity === 'CRITICAL' && a.analyst_decision === 'pending').length;
+            const alertesCritiques = alerts.filter(a => a.severity === 'CRITICAL' && a.analyst_decision === 'PENDING').length;
             // KPI 5: Montant sous Risque
-            const montantRisque = txns.filter(t => t.is_anomaly).reduce((s, t) => s + (t.amount || 0), 0).toFixed(0) + ' MAD';
+            const montantRisque = txns.filter(t => t.risk_score >= 65).reduce((s, t) => s + (t.amount || 0), 0).toFixed(0) + ' MAD';
             // KPI 6: Temps Moyen (SLA)
             const tempsMoyen = '2.3s'; 
             // KPI 7: Taux de Faux Positifs
             const totalAlertes = alerts.length;
-            const fauxPositifs = alerts.filter(a => a.analyst_decision === 'false_positive').length;
+            const fauxPositifs = alerts.filter(a => a.analyst_decision === 'FALSE_POSITIVE').length;
             const tauxFP = totalAlertes > 0 ? (fauxPositifs / totalAlertes * 100).toFixed(1) + '%' : '0%';
 
             const kpiData = [
@@ -282,7 +304,7 @@
                 </div>`).join('');
         }
 
-        // 5. TABLEAUX DES ALERTES (CORRIGÉ SANS ERREUR)
+        // 5. TABLEAUX DES ALERTES
         function updateAlertsTable(suffix) {
             const tbody = document.getElementById(`alerts-table-body-${suffix}`);
             const alertTxns = allTransactions.filter(t => (t.risk_score || 0) >= 66).slice(0, suffix === 'all' ? 50 : 20);
@@ -294,25 +316,25 @@
 
             let html = '';
             alertTxns.forEach(txn => {
-                const decision = txn.analyst_decision || 'pending';
+                const decision = txn.analyst_decision || 'PENDING';
                 const severity = txn.severity_db || txn.risk_level || 'HIGH';
 
-                // ✅ DÉCLARATION DE severityBadge (CORRIGÉ)
+                // ✅ DÉCLARATION DE severityBadge
                 let severityBadge = '';
                 if (severity === 'CRITICAL') severityBadge = `<span class="badge-severity bg-red-light">⚠️ Critique</span>`;
                 else severityBadge = `<span class="badge-severity bg-orange-light">⚡ Élevée</span>`;
 
-                // ✅ DÉCLARATION DE statusBadge (CORRIGÉ)
+                // ✅ DÉCLARATION DE statusBadge (Adapté au nouveau schéma)
                 let statusBadge = '';
-                if (decision === 'confirmed_fraud') statusBadge = `<span class="text-red-600 font-semibold">Fraude</span>`;
-                else if (decision === 'false_positive') statusBadge = `<span class="text-emerald-600 font-semibold">Faux Positif</span>`;
+                if (decision === 'CONFIRMED_FRAUD') statusBadge = `<span class="text-red-600 font-semibold">Fraude</span>`;
+                else if (decision === 'FALSE_POSITIVE') statusBadge = `<span class="text-emerald-600 font-semibold">Faux Positif</span>`;
                 else statusBadge = `<span class="text-gray-400">En attente</span>`;
 
                 html += `
                     <tr class="hover:bg-gray-50 cursor-pointer" onclick="openDetail('${txn.transaction_id}')">
                         <td class="px-4 py-2 font-mono text-xs">${txn.display_id}</td>
                         <td class="px-4 py-2">${txn.customer_name}</td>
-                        <td class="px-4 py-2 font-medium">${txn.amount?.toFixed(0) || 0} ${txn.currency}</td>
+                        <td class="px-4 py-2 font-medium">${txn.amount?.toFixed(0) || 0} ${txn.currency || 'MAD'}</td>
                         <td class="px-4 py-2 font-bold ${txn.risk_score >= 66 ? 'text-red-600' : 'text-gray-600'}">${txn.risk_score || 0}</td>
                         <td class="px-4 py-2">${severityBadge}</td>
                         <td class="px-4 py-2">${statusBadge}</td>
@@ -327,7 +349,7 @@
             tbody.innerHTML = html;
         }
 
-        // 6. GRAPHIQUES (Évolution & Pie)
+        // 6. GRAPHIQUES
         function updateCharts() {
             updateChart('riskChartOverview');
             updatePieChart('pieChartOverview');
@@ -380,13 +402,15 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="space-y-2">
                         <p><span class="font-semibold">Client :</span> ${txn.customer_name}</p>
-                        <p><span class="font-semibold">Ville :</span> ${txn.city}</p>
+                        <p><span class="font-semibold">Ville :</span> ${txn.home_city}</p>
                         <p><span class="font-semibold">Canal :</span> ${txn.channel} (${txn.transaction_type || 'N/A'})</p>
+                        <p><span class="font-semibold">RIB Source :</span> ${txn.source_rib || 'N/A'}</p>
                     </div>
                     <div class="space-y-2">
-                        <p><span class="font-semibold">Montant :</span> ${txn.amount?.toFixed(0) || 0} ${txn.currency}</p>
-                        <p><span class="font-semibold">Pays :</span> ${txn.country}</p>
+                        <p><span class="font-semibold">Montant :</span> ${txn.amount?.toFixed(0) || 0} ${txn.currency || 'MAD'}</p>
+                        <p><span class="font-semibold">Pays :</span> ${txn.location_country || 'MA'}</p>
                         <p><span class="font-semibold">Score :</span> <span class="text-red-600 font-bold">${txn.risk_score}</span></p>
+                        <p><span class="font-semibold">Statut :</span> ${txn.analyst_decision === 'CONFIRMED_FRAUD' ? 'Fraude confirmée' : txn.analyst_decision === 'FALSE_POSITIVE' ? 'Faux positif' : 'En attente'}</p>
                     </div>
                 </div>
                 <div class="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border border-indigo-100">
@@ -419,8 +443,8 @@
             }
         }
 
-        document.getElementById('modalBtnFraud').addEventListener('click', () => arbitrer('confirmed_fraud'));
-        document.getElementById('modalBtnFalsePositive').addEventListener('click', () => arbitrer('false_positive'));
+        document.getElementById('modalBtnFraud').addEventListener('click', () => arbitrer('CONFIRMED_FRAUD'));
+        document.getElementById('modalBtnFalsePositive').addEventListener('click', () => arbitrer('FALSE_POSITIVE'));
 
         // 8. NAVIGATION & RECHERCHE
         document.querySelectorAll('.tab-btn').forEach(btn => {
