@@ -8,6 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         .card-hover:hover { transform: translateY(-2px); transition: all 0.2s ease; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
         .badge-severity { padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
@@ -40,6 +42,9 @@
             </div>
             <div class="flex items-center space-x-4 text-sm text-gray-500">
                 <span><i class="fas fa-user-shield mr-1"></i> Admin</span>
+                <button id="btnGlobalReport" class="px-3 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                    <i class="fas fa-file-pdf mr-1"></i> Rapport Global
+                </button>
                 <span id="connection-status" class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Connexion...</span>
             </div>
         </div>
@@ -148,6 +153,9 @@
             </div>
             <div id="modalContent" class="space-y-4"></div>
             <div id="modalActions" class="mt-6 pt-4 border-t border-gray-200 flex flex-wrap gap-3 justify-end">
+                <button id="modalBtnReport" class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                    <i class="fas fa-file-pdf mr-1"></i> Rapport Client
+                </button>
                 <button id="modalBtnFraud" class="px-5 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
                     <i class="fas fa-exclamation-triangle mr-1"></i> Confirmer Fraude
                 </button>
@@ -265,20 +273,13 @@
             const txns = allTransactions;
             const alerts = allAlerts;
 
-            // KPI 1: Volume Total
             const volume = txns.length;
-            // KPI 2: Taux d'Anomalies (%)
             const anomalies = txns.filter(t => t.risk_score >= 65).length;
             const tauxAnomalies = volume > 0 ? (anomalies / volume * 100).toFixed(1) + '%' : '0%';
-            // KPI 3: Score Moyen
             const scoreMoyen = volume > 0 ? (txns.reduce((s, t) => s + (t.risk_score || 0), 0) / volume).toFixed(1) : '0';
-            // KPI 4: Alertes Critiques Ouvertes
             const alertesCritiques = alerts.filter(a => a.severity === 'CRITICAL' && a.analyst_decision === 'PENDING').length;
-            // KPI 5: Montant sous Risque
             const montantRisque = txns.filter(t => t.risk_score >= 65).reduce((s, t) => s + (t.amount || 0), 0).toFixed(0) + ' MAD';
-            // KPI 6: Temps Moyen (SLA)
             const tempsMoyen = '2.3s'; 
-            // KPI 7: Taux de Faux Positifs
             const totalAlertes = alerts.length;
             const fauxPositifs = alerts.filter(a => a.analyst_decision === 'FALSE_POSITIVE').length;
             const tauxFP = totalAlertes > 0 ? (fauxPositifs / totalAlertes * 100).toFixed(1) + '%' : '0%';
@@ -319,12 +320,10 @@
                 const decision = txn.analyst_decision || 'PENDING';
                 const severity = txn.severity_db || txn.risk_level || 'HIGH';
 
-                // ✅ DÉCLARATION DE severityBadge
                 let severityBadge = '';
                 if (severity === 'CRITICAL') severityBadge = `<span class="badge-severity bg-red-light">⚠️ Critique</span>`;
                 else severityBadge = `<span class="badge-severity bg-orange-light">⚡ Élevée</span>`;
 
-                // ✅ DÉCLARATION DE statusBadge (Adapté au nouveau schéma)
                 let statusBadge = '';
                 if (decision === 'CONFIRMED_FRAUD') statusBadge = `<span class="text-red-600 font-semibold">Fraude</span>`;
                 else if (decision === 'FALSE_POSITIVE') statusBadge = `<span class="text-emerald-600 font-semibold">Faux Positif</span>`;
@@ -481,6 +480,271 @@
             });
             html += '</table>';
             resultsDiv.innerHTML = html;
+        });
+
+        // ================================================================
+        // 9. GÉNÉRATION DE RAPPORTS PDF
+        // ================================================================
+
+        // --- Fonction utilitaire : dessine l'en-tête du PDF ---
+        function drawPdfHeader(doc, title, subtitle) {
+            // Bandeau indigo
+            doc.setFillColor(79, 70, 229);
+            doc.rect(0, 0, 210, 25, 'F');
+            // Titre
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "bold");
+            doc.text("BankShield AI", 14, 12);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(title, 14, 19);
+            // Sous-titre à droite
+            doc.setFontSize(9);
+            doc.text(subtitle, 196, 12, { align: 'right' });
+            doc.text(new Date().toLocaleString('fr-FR'), 196, 19, { align: 'right' });
+            // Reset couleur texte
+            doc.setTextColor(0, 0, 0);
+        }
+
+        // --- RAPPORT GLOBAL : Tous les clients avec leur résumé d'alertes ---
+        function generateGlobalReport() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            drawPdfHeader(doc, "Rapport Global des Alertes", "Confidentiel - Usage interne");
+
+            // Regrouper les transactions par client
+            const clientMap = {};
+            allTransactions.forEach(t => {
+                if (!clientMap[t.customer_id]) {
+                    clientMap[t.customer_id] = {
+                        customer_id: t.customer_id,
+                        name: t.customer_name || 'Inconnu',
+                        city: t.home_city || 'N/A',
+                        transactions: [],
+                        alerts: []
+                    };
+                }
+                clientMap[t.customer_id].transactions.push(t);
+                if ((t.risk_score || 0) >= 66) {
+                    clientMap[t.customer_id].alerts.push(t);
+                }
+            });
+
+            // Statistiques globales
+            const totalClients = Object.keys(clientMap).length;
+            const totalAlerts = allTransactions.filter(t => (t.risk_score || 0) >= 66).length;
+            const totalFraud = allAlerts.filter(a => a.analyst_decision === 'CONFIRMED_FRAUD').length;
+            const totalFP = allAlerts.filter(a => a.analyst_decision === 'FALSE_POSITIVE').length;
+
+            // Bloc de synthèse
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.text("Synthèse Générale", 14, 35);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text(`Clients analysés : ${totalClients}`, 14, 42);
+            doc.text(`Alertes totales (score >= 66) : ${totalAlerts}`, 80, 42);
+            doc.text(`Fraudes confirmées : ${totalFraud}`, 145, 42);
+            doc.text(`Faux positifs : ${totalFP}`, 14, 48);
+            doc.text(`Taux de faux positifs : ${totalAlerts > 0 ? ((totalFP / totalAlerts) * 100).toFixed(1) : 0}%`, 80, 48);
+
+            // Tableau par client
+            const rows = Object.values(clientMap).map(c => {
+                const maxScore = c.alerts.length > 0 ? Math.max(...c.alerts.map(a => a.risk_score || 0)) : 0;
+                const fraudCount = c.alerts.filter(a => a.analyst_decision === 'CONFIRMED_FRAUD').length;
+                const fpCount = c.alerts.filter(a => a.analyst_decision === 'FALSE_POSITIVE').length;
+                const pendingCount = c.alerts.filter(a => a.analyst_decision === 'PENDING').length;
+                const montantRisque = c.alerts.reduce((s, a) => s + (a.amount || 0), 0);
+
+                return [
+                    c.customer_id,
+                    c.name,
+                    c.city,
+                    c.transactions.length,
+                    c.alerts.length,
+                    maxScore,
+                    fraudCount,
+                    fpCount,
+                    pendingCount,
+                    montantRisque.toFixed(0) + ' MAD'
+                ];
+            });
+
+            doc.autoTable({
+                startY: 55,
+                head: [['ID Client', 'Nom', 'Ville', 'Txns', 'Alertes', 'Score Max', 'Fraudes', 'Faux Pos.', 'En Attente', 'Montant Risque']],
+                body: rows,
+                theme: 'striped',
+                headStyles: { fillColor: [79, 70, 229], fontSize: 8 },
+                bodyStyles: { fontSize: 8 },
+                columnStyles: {
+                    0: { cellWidth: 22 },
+                    1: { cellWidth: 30 },
+                    2: { cellWidth: 22 },
+                    3: { cellWidth: 12, halign: 'center' },
+                    4: { cellWidth: 14, halign: 'center' },
+                    5: { cellWidth: 16, halign: 'center' },
+                    6: { cellWidth: 16, halign: 'center' },
+                    7: { cellWidth: 16, halign: 'center' },
+                    8: { cellWidth: 18, halign: 'center' },
+                    9: { cellWidth: 22, halign: 'right' }
+                }
+            });
+
+            // Pied de page
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(`BankShield AI - Rapport Global - Page ${i}/${pageCount}`, 105, 290, { align: 'center' });
+            }
+
+            doc.save(`BankShield_Rapport_Global_${new Date().toISOString().slice(0, 10)}.pdf`);
+        }
+
+        // --- RAPPORT CLIENT : Détail complet d'un client ---
+        function generateClientReport(customerId) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Récupérer toutes les transactions du client
+            const clientTxns = allTransactions.filter(t => t.customer_id === customerId);
+            if (clientTxns.length === 0) {
+                alert('Aucune donnée pour ce client.');
+                return;
+            }
+
+            const clientInfo = clientTxns[0];
+            const clientAlerts = clientTxns.filter(t => (t.risk_score || 0) >= 66);
+
+            drawPdfHeader(doc, `Rapport Client : ${clientInfo.customer_name}`, "Confidentiel - AML");
+
+            // Bloc informations client
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.text("Informations Client", 14, 35);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text(`ID : ${customerId}`, 14, 42);
+            doc.text(`Nom : ${clientInfo.customer_name}`, 14, 48);
+            doc.text(`Ville : ${clientInfo.home_city}`, 14, 54);
+            doc.text(`Téléphone : ${clientInfo.phone}`, 100, 42);
+
+            // Statistiques du client
+            const maxScore = clientAlerts.length > 0 ? Math.max(...clientAlerts.map(a => a.risk_score || 0)) : 0;
+            const totalAmountAtRisk = clientAlerts.reduce((s, a) => s + (a.amount || 0), 0);
+            const fraudCount = clientAlerts.filter(a => a.analyst_decision === 'CONFIRMED_FRAUD').length;
+            const fpCount = clientAlerts.filter(a => a.analyst_decision === 'FALSE_POSITIVE').length;
+
+            doc.setFont("helvetica", "bold");
+            doc.text("Synthèse", 14, 66);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Transactions totales : ${clientTxns.length}`, 14, 73);
+            doc.text(`Alertes (score >= 66) : ${clientAlerts.length}`, 80, 73);
+            doc.text(`Score maximum atteint : ${maxScore}`, 145, 73);
+            doc.text(`Montant sous risque : ${totalAmountAtRisk.toFixed(0)} MAD`, 14, 79);
+            doc.text(`Fraudes confirmées : ${fraudCount}`, 100, 79);
+            doc.text(`Faux positifs : ${fpCount}`, 145, 79);
+
+            // Tableau des transactions suspectes
+            doc.setFont("helvetica", "bold");
+            doc.text("Transactions Suspectes", 14, 92);
+
+            const txnRows = clientAlerts.map(t => {
+                const date = new Date(t.timestamp).toLocaleString('fr-FR').slice(0, 16);
+                const decisionLabel = t.analyst_decision === 'CONFIRMED_FRAUD' ? 'FRAUDE' :
+                    t.analyst_decision === 'FALSE_POSITIVE' ? 'Faux Positif' : 'En attente';
+                return [
+                    t.transaction_id || 'N/A',
+                    date,
+                    t.amount?.toFixed(0) + ' ' + (t.currency || 'MAD'),
+                    t.channel || 'N/A',
+                    t.risk_score || 0,
+                    t.severity_db || 'HIGH',
+                    decisionLabel
+                ];
+            });
+
+            doc.autoTable({
+                startY: 97,
+                head: [['ID Transaction', 'Date', 'Montant', 'Canal', 'Score', 'Sévérité', 'Décision']],
+                body: txnRows.length > 0 ? txnRows : [['—', '—', '—', '—', '—', '—', 'Aucune alerte']],
+                theme: 'striped',
+                headStyles: { fillColor: [220, 38, 38], fontSize: 9 },
+                bodyStyles: { fontSize: 8 }
+            });
+
+            // Détail de chaque alerte avec diagnostic IA
+            let yPos = doc.lastAutoTable.finalY + 15;
+
+            clientAlerts.forEach((t, idx) => {
+                if (yPos > 240) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                doc.setFillColor(245, 245, 255);
+                doc.rect(14, yPos - 5, 182, 45, 'F');
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10);
+                doc.setTextColor(220, 38, 38);
+                doc.text(`Alerte #${idx + 1} - ${t.transaction_id}`, 18, yPos + 2);
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(9);
+                doc.text(`Montant : ${t.amount?.toFixed(0)} ${t.currency || 'MAD'} | Canal : ${t.channel} | Pays : ${t.location_country || 'MA'}`, 18, yPos + 9);
+                doc.text(`Score : ${t.risk_score} | Sévérité : ${t.severity_db || 'HIGH'}`, 18, yPos + 15);
+
+                // Diagnostic IA
+                doc.setFont("helvetica", "italic");
+                const aiSummary = t.ai_summary || 'Analyse IA non disponible.';
+                const splitSummary = doc.splitTextToSize(`Diagnostic IA : ${aiSummary}`, 175);
+                doc.text(splitSummary, 18, yPos + 22);
+
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(79, 70, 229);
+                const actionText = doc.splitTextToSize(`Action recommandée : ${t.ai_action_recommendation || 'N/A'}`, 175);
+                doc.text(actionText, 18, yPos + 30);
+
+                // Règles déclenchées
+                if (t.triggered_rules && t.triggered_rules.length > 0) {
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(100, 100, 100);
+                    doc.setFontSize(8);
+                    const rulesText = t.triggered_rules.map(r => typeof r === 'object' ? `${r.code}: ${r.name}` : String(r)).join(' | ');
+                    const splitRules = doc.splitTextToSize(`Règles : ${rulesText}`, 175);
+                    doc.text(splitRules, 18, yPos + 38);
+                }
+
+                doc.setTextColor(0, 0, 0);
+                yPos += 52;
+            });
+
+            // Pied de page
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(`BankShield AI - Rapport Client ${customerId} - Page ${i}/${pageCount}`, 105, 290, { align: 'center' });
+            }
+
+            doc.save(`BankShield_Rapport_${clientInfo.customer_name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+        }
+
+        // --- Event Listeners pour les boutons rapports ---
+        document.getElementById('btnGlobalReport').addEventListener('click', generateGlobalReport);
+
+        document.getElementById('modalBtnReport').addEventListener('click', () => {
+            if (selectedAlertId) {
+                const txn = allTransactions.find(t => t.transaction_id === selectedAlertId);
+                if (txn) generateClientReport(txn.customer_id);
+            }
         });
 
         document.addEventListener('DOMContentLoaded', loadData);
