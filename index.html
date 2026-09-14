@@ -11,45 +11,147 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
-        .card-hover:hover { transform: translateY(-2px); transition: all 0.2s ease; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
-        .badge-severity { padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-        .bg-green-light { background-color: #dcfce7; color: #166534; }
-        .bg-red-light { background-color: #fee2e2; color: #991b1b; }
-        .bg-orange-light { background-color: #ffedd5; color: #9a3412; }
+        :root {
+            --bg-deep: #0A0F1F;
+            --bg-card: #111827;
+            --bg-card-alt: #1E293B;
+            --border-subtle: #1E2A44;
+            --cyan: #06B6D4;
+            --cyan-light: #22D3EE;
+            --blue: #2563EB;
+            --violet: #7C3AED;
+            --text-primary: #FFFFFF;
+            --text-muted: #94A3B8;
+            --crimson: #E11D48;
+            --amber: #F59E0B;
+            --yellow: #FBBF24;
+            --emerald: #10B981;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        .card-hover:hover { 
+            transform: translateY(-2px); 
+            transition: all 0.2s ease; 
+            box-shadow: 0 10px 30px -5px rgba(6, 182, 212, 0.3);
+            border-color: var(--cyan) !important;
+        }
+
+        .bank-card {
+            background: linear-gradient(145deg, #111827 0%, #0F172A 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+        }
+
+        .bank-card-glow {
+            background: linear-gradient(145deg, #111827 0%, #0F172A 100%);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            box-shadow: 0 0 20px -5px rgba(6, 182, 212, 0.15);
+            border-radius: 12px;
+        }
+
+        .badge-severity { padding: 3px 12px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+
+        /* Dark badges */
+        .bg-green-light { background-color: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .bg-red-light { background-color: rgba(225, 29, 72, 0.15); color: #FB7185; border: 1px solid rgba(225, 29, 72, 0.3); }
+        .bg-orange-light { background-color: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
         .modal-overlay { transition: opacity 0.3s ease; }
         .modal-content { transition: transform 0.3s ease; transform: scale(0.95); }
         .modal-open .modal-content { transform: scale(1); }
-        .tab-btn { transition: all 0.2s ease; border-bottom: 3px solid transparent; padding-bottom: 8px; cursor: pointer; }
-        .tab-btn.active { border-bottom-color: #4f46e5; color: #4f46e5; font-weight: 600; }
+
+        .tab-btn { 
+            transition: all 0.2s ease; 
+            border-bottom: 3px solid transparent; 
+            padding-bottom: 8px; 
+            cursor: pointer; 
+            color: var(--text-muted);
+        }
+        .tab-btn.active { 
+            border-bottom-color: var(--cyan); 
+            color: var(--cyan-light); 
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+        }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .badge-rule { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; margin: 2px; }
-        .bg-rule-1 { background: #dbeafe; color: #1e40af; }
-        .bg-rule-2 { background: #fce7f3; color: #9d174d; }
-        .bg-rule-3 { background: #d1fae5; color: #065f46; }
-        .bg-rule-4 { background: #fef3c7; color: #92400e; }
-        .bg-rule-5 { background: #e0e7ff; color: #3730a3; }
+
+        /* Neon title */
+        .neon-title {
+            text-shadow: 0 0 15px rgba(34, 211, 238, 0.6);
+        }
+
+        /* KPI Cards */
+        .kpi-card {
+            background: linear-gradient(145deg, #111827 0%, #0F172A 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--cyan), var(--violet));
+        }
+
+        /* Table dark */
+        table thead tr { background-color: #0F172A !important; }
+        table thead th { color: var(--text-muted) !important; border-bottom: 1px solid var(--border-subtle) !important; }
+        table tbody tr { border-bottom: 1px solid var(--border-subtle) !important; }
+        table tbody tr:hover { background-color: rgba(6, 182, 212, 0.05) !important; }
+        table tbody td { color: #E2E8F0 !important; }
+
+        /* Header */
+        header {
+            background: linear-gradient(180deg, #0F172A 0%, #0A0F1F 100%) !important;
+            border-bottom: 1px solid var(--border-subtle) !important;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0A0F1F; }
+        ::-webkit-scrollbar-thumb { background: #1E2A44; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #22D3EE 0%, #7C3AED 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
     </style>
 </head>
-<body class="bg-gray-50 font-sans antialiased">
+<body class="font-sans antialiased">
 
     <!-- ================= EN-TÊTE ================= -->
-    <header class="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+    <header class="sticky top-0 z-20 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between">
             <div class="flex items-center space-x-3">
-                <span class="text-2xl font-bold text-indigo-700">BankShield AI</span>
-                <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full">Dashboard</span>
+                <div class="w-9 h-9 rounded-full border-2 border-cyan-400 flex items-center justify-center" style="box-shadow: 0 0 15px rgba(34,211,238,0.5);">
+                    <div class="w-4 h-4 rounded-full bg-cyan-400"></div>
+                </div>
+                <span class="text-2xl font-bold neon-title" style="color: #22D3EE;">BankShield AI</span>
+                <span class="text-xs font-semibold px-3 py-1 rounded-full" style="background: rgba(6,182,212,0.15); color: #22D3EE; border: 1px solid rgba(6,182,212,0.3);">Dashboard</span>
             </div>
-            <div class="flex items-center space-x-4 text-sm text-gray-500">
+            <div class="flex items-center space-x-4 text-sm" style="color: var(--text-muted);">
                 <span><i class="fas fa-user-shield mr-1"></i> Admin</span>
-                <button id="btnGlobalReport" class="px-3 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                <button id="btnGlobalReport" class="px-3 py-1 rounded-lg text-xs font-medium transition" style="background: linear-gradient(135deg, #06B6D4 0%, #7C3AED 100%); color: white;">
                     <i class="fas fa-file-pdf mr-1"></i> Rapport Global
                 </button>
-                <span id="connection-status" class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Connexion...</span>
+                <span id="connection-status" class="px-2 py-1 rounded-full text-xs font-medium" style="background: rgba(245,158,11,0.15); color: #FBBF24;">Connexion...</span>
             </div>
         </div>
         <div class="max-w-7xl mx-auto px-4">
-            <nav class="flex space-x-6 text-sm font-medium text-gray-500 overflow-x-auto">
+            <nav class="flex space-x-6 text-sm font-medium overflow-x-auto">
                 <button class="tab-btn active" data-tab="overview"><i class="fas fa-th-large mr-2"></i> Vue d'ensemble</button>
                 <button class="tab-btn" data-tab="alerts"><i class="fas fa-bell mr-2"></i> Alertes</button>
                 <button class="tab-btn" data-tab="details"><i class="fas fa-user-circle mr-2"></i> Détails client</button>
@@ -63,39 +165,63 @@
         <!-- ONGLET 1 : VUE D'ENSEMBLE -->
         <div id="tab-overview" class="tab-content active">
             <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6" id="kpi-grid-overview"></section>
+            
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="lg:col-span-2 bg-white rounded-xl shadow p-4 border border-gray-100">
-                    <h2 class="text-base font-semibold text-gray-700 mb-2">Évolution des scores (20 derniers)</h2>
-                    <div style="height:200px; position:relative;"><canvas id="riskChartOverview"></canvas></div>
+                <div class="lg:col-span-2 bank-card p-4">
+                    <h2 class="text-base font-semibold mb-3" style="color: var(--text-primary);">
+                        <i class="fas fa-chart-line mr-2" style="color: #22D3EE;"></i> Évolution des scores (20 derniers)
+                    </h2>
+                    <div style="height:220px; position:relative;"><canvas id="riskChartOverview"></canvas></div>
                 </div>
-                <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
-                    <h2 class="text-base font-semibold text-gray-700 mb-2">Répartition des risques</h2>
-                    <div style="height:200px; position:relative;"><canvas id="pieChartOverview"></canvas></div>
-                    <div class="mt-1 text-xs text-gray-500 text-center">
-                        <span class="inline-block w-3 h-3 bg-green-500 rounded-full mr-1"></span> Faible <35
-                        <span class="inline-block w-3 h-3 bg-yellow-400 rounded-full ml-2 mr-1"></span> Moyen 35-65
-                        <span class="inline-block w-3 h-3 bg-orange-500 rounded-full ml-2 mr-1"></span> Élevé 66-84
-                        <span class="inline-block w-3 h-3 bg-red-600 rounded-full ml-2 mr-1"></span> Critique ≥85
+                <div class="bank-card p-4">
+                    <h2 class="text-base font-semibold mb-3" style="color: var(--text-primary);">
+                        <i class="fas fa-chart-pie mr-2" style="color: #22D3EE;"></i> Répartition des risques
+                    </h2>
+                    <div style="height:220px; position:relative;"><canvas id="pieChartOverview"></canvas></div>
+                    <div class="mt-2 text-xs text-center" style="color: var(--text-muted);">
+                        <span class="inline-block w-3 h-3 rounded-full mr-1" style="background: #10B981;"></span> Faible <35
+                        <span class="inline-block w-3 h-3 rounded-full ml-2 mr-1" style="background: #FBBF24;"></span> Moyen 35-65
+                        <span class="inline-block w-3 h-3 rounded-full ml-2 mr-1" style="background: #F59E0B;"></span> Élevé 66-84
+                        <span class="inline-block w-3 h-3 rounded-full ml-2 mr-1" style="background: #E11D48;"></span> Critique ≥85
                     </div>
                 </div>
             </div>
-            <section class="bg-white rounded-xl shadow border border-gray-100 p-4">
-                <h2 class="text-base font-semibold text-gray-700 mb-3"><i class="fas fa-bell text-amber-500 mr-2"></i> Alertes récentes (Score ≥ 66)</h2>
+
+            <!-- ⭐ NOUVEAU : HISTOGRAMME DES 12 RÈGLES DE SCORING -->
+            <div class="bank-card-glow p-4 mb-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-base font-semibold" style="color: var(--text-primary);">
+                        <i class="fas fa-ruler-combined mr-2" style="color: #22D3EE;"></i> Fréquence des 12 Règles de Scoring (RG-01 à RG-12)
+                    </h2>
+                    <span class="text-xs px-3 py-1 rounded-full" style="background: rgba(124,58,237,0.15); color: #A78BFA; border: 1px solid rgba(124,58,237,0.3);">
+                        <i class="fas fa-chart-bar mr-1"></i> Analyse des déclenchements
+                    </span>
+                </div>
+                <div style="height:260px; position:relative;"><canvas id="rulesHistogram"></canvas></div>
+                <div class="mt-2 text-xs text-center" style="color: var(--text-muted);">
+                    Nombre de fois où chaque règle a été déclenchée sur l'ensemble des transactions analysées
+                </div>
+            </div>
+
+            <section class="bank-card p-4">
+                <h2 class="text-base font-semibold mb-3" style="color: var(--text-primary);">
+                    <i class="fas fa-bell mr-2" style="color: #FBBF24;"></i> Alertes récentes (Score ≥ 66)
+                </h2>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead class="bg-gray-50">
+                    <table class="min-w-full text-sm">
+                        <thead>
                             <tr>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">ID</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Client</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Montant</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Score</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Sévérité</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Statut</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Action</th>
+                                <th class="px-4 py-2 text-left font-medium">ID</th>
+                                <th class="px-4 py-2 text-left font-medium">Client</th>
+                                <th class="px-4 py-2 text-left font-medium">Montant</th>
+                                <th class="px-4 py-2 text-left font-medium">Score</th>
+                                <th class="px-4 py-2 text-left font-medium">Sévérité</th>
+                                <th class="px-4 py-2 text-left font-medium">Statut</th>
+                                <th class="px-4 py-2 text-left font-medium">Action</th>
                             </tr>
                         </thead>
                         <tbody id="alerts-table-body-ov">
-                            <tr><td colspan="7" class="text-center text-gray-400 py-4">Chargement...</td></tr>
+                            <tr><td colspan="7" class="text-center py-4" style="color: var(--text-muted);">Chargement...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -104,23 +230,25 @@
 
         <!-- ONGLET ALERTES -->
         <div id="tab-alerts" class="tab-content">
-            <h2 class="text-xl font-bold text-gray-800 mb-4"><i class="fas fa-bell text-amber-500 mr-2"></i> Toutes les alertes</h2>
-            <div class="bg-white rounded-xl shadow border border-gray-100 p-4">
+            <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">
+                <i class="fas fa-bell mr-2" style="color: #FBBF24;"></i> Toutes les alertes
+            </h2>
+            <div class="bank-card p-4">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead class="bg-gray-50">
+                    <table class="min-w-full text-sm">
+                        <thead>
                             <tr>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">ID</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Client</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Montant</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Score</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Sévérité</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Statut</th>
-                                <th class="px-4 py-2 text-left font-medium text-gray-500">Action</th>
+                                <th class="px-4 py-2 text-left font-medium">ID</th>
+                                <th class="px-4 py-2 text-left font-medium">Client</th>
+                                <th class="px-4 py-2 text-left font-medium">Montant</th>
+                                <th class="px-4 py-2 text-left font-medium">Score</th>
+                                <th class="px-4 py-2 text-left font-medium">Sévérité</th>
+                                <th class="px-4 py-2 text-left font-medium">Statut</th>
+                                <th class="px-4 py-2 text-left font-medium">Action</th>
                             </tr>
                         </thead>
                         <tbody id="alerts-table-body-all">
-                            <tr><td colspan="7" class="text-center text-gray-400 py-4">Chargement...</td></tr>
+                            <tr><td colspan="7" class="text-center py-4" style="color: var(--text-muted);">Chargement...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -129,15 +257,20 @@
 
         <!-- ONGLET DÉTAILS CLIENT -->
         <div id="tab-details" class="tab-content">
-            <h2 class="text-xl font-bold text-gray-800 mb-4"><i class="fas fa-user-circle text-indigo-500 mr-2"></i> Recherche et détails client</h2>
-            <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
+            <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">
+                <i class="fas fa-user-circle mr-2" style="color: #22D3EE;"></i> Recherche et détails client
+            </h2>
+            <div class="bank-card p-4">
                 <div class="flex flex-wrap gap-4 mb-4">
-                    <input type="text" id="searchInput" placeholder="ID transaction ou nom client" class="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
-                    <button id="searchBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                    <input type="text" id="searchInput" placeholder="ID transaction ou nom client" 
+                        class="flex-1 min-w-[200px] px-4 py-2 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500" 
+                        style="background: #0F172A; border: 1px solid #1E2A44; color: white;">
+                    <button id="searchBtn" class="px-4 py-2 rounded-lg text-sm font-medium transition" 
+                        style="background: linear-gradient(135deg, #06B6D4 0%, #2563EB 100%); color: white;">
                         <i class="fas fa-search mr-1"></i> Rechercher
                     </button>
                 </div>
-                <div id="searchResults" class="text-sm text-gray-500">
+                <div id="searchResults" class="text-sm" style="color: var(--text-muted);">
                     <p class="italic">Entrez un ID ou un nom pour afficher les détails.</p>
                 </div>
             </div>
@@ -145,34 +278,53 @@
     </main>
 
     <!-- MODAL DETAILS -->
-    <div id="detailModal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay hidden" style="background: rgba(0,0,0,0.5);">
-        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto modal-content p-6">
+    <div id="detailModal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay hidden" style="background: rgba(0,0,0,0.75);">
+        <div class="bank-card-glow max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto modal-content p-6">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-user-circle text-indigo-600 mr-2"></i> Détails du client & transaction</h3>
-                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                <h3 class="text-lg font-bold" style="color: var(--text-primary);">
+                    <i class="fas fa-user-circle mr-2" style="color: #22D3EE;"></i> Détails du client & transaction
+                </h3>
+                <button id="closeModalBtn" class="text-xl" style="color: var(--text-muted);">&times;</button>
             </div>
             <div id="modalContent" class="space-y-4"></div>
-            <div id="modalActions" class="mt-6 pt-4 border-t border-gray-200 flex flex-wrap gap-3 justify-end">
-                <button id="modalBtnReport" class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+            <div id="modalActions" class="mt-6 pt-4 flex flex-wrap gap-3 justify-end" style="border-top: 1px solid var(--border-subtle);">
+                <button id="modalBtnReport" class="px-5 py-2 rounded-lg text-sm font-medium transition" style="background: linear-gradient(135deg, #06B6D4 0%, #2563EB 100%); color: white;">
                     <i class="fas fa-file-pdf mr-1"></i> Rapport Client
                 </button>
-                <button id="modalBtnFraud" class="px-5 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                <button id="modalBtnFraud" class="px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed" style="background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%); color: white;">
                     <i class="fas fa-exclamation-triangle mr-1"></i> Confirmer Fraude
                 </button>
-                <button id="modalBtnFalsePositive" class="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                <button id="modalBtnFalsePositive" class="px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white;">
                     <i class="fas fa-check-circle mr-1"></i> Faux Positif
                 </button>
-                <span id="modalArbitrageMessage" class="text-xs text-gray-500 self-center"></span>
+                <span id="modalArbitrageMessage" class="text-xs self-center" style="color: var(--text-muted);"></span>
             </div>
         </div>
     </div>
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // 1. CONFIGURATION SUPABASE (Clé Publishable du Pôle 3)
+        // 1. CONFIGURATION SUPABASE
         const SUPABASE_URL = 'https://dayemaufmjhwhoelmctf.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_SptSF_lMowhhTLWsmy33Aw_b_8A176_';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ⭐ Mapping des codes de règles aux noms lisibles
+        const RULE_NAMES = {
+            'RG-01': 'Montant extrême',
+            'RG-01b': 'Montant inhabituel',
+            'RG-02': 'Vidage de solde',
+            'RG-03': 'Dépassement plafond',
+            'RG-04': 'Pays étranger',
+            'RG-05': 'Voyage impossible',
+            'RG-06': 'Nouveau bénéficiaire',
+            'RG-07': 'Horaire nocturne',
+            'RG-08': 'Vélocité (Smurfing)',
+            'RG-09': 'Changement canal',
+            'RG-10': 'Marchand à risque',
+            'RG-11': 'Tiers de confiance',
+            'RG-12': 'TPE Carte + PIN'
+        };
 
         let allTransactions = [];
         let allAlerts = [];
@@ -180,13 +332,12 @@
         let selectedAlertId = null;
         let chartInstances = {};
 
-        // 2. CHARGEMENT DES DONNÉES (Adapté au nouveau schéma)
+        // 2. CHARGEMENT DES DONNÉES
         async function loadData() {
             const statusEl = document.getElementById('connection-status');
             statusEl.textContent = 'Connexion...';
             
             try {
-                // Récupération des 4 tables
                 const [txnRes, riskRes, alertRes, custRes] = await Promise.all([
                     supabaseClient.from('transactions').select('*').order('timestamp', { ascending: false }).limit(100),
                     supabaseClient.from('risk_evaluations').select('*'),
@@ -194,17 +345,16 @@
                     supabaseClient.from('customers').select('*')
                 ]);
 
-                if (txnRes.error) throw new Error("Erreur sur transactions: " + txnRes.error.message);
-                if (riskRes.error) throw new Error("Erreur sur risk_evaluations: " + riskRes.error.message);
-                if (alertRes.error) throw new Error("Erreur sur fraud_alerts: " + alertRes.error.message);
-                if (custRes.error) throw new Error("Erreur sur customers: " + custRes.error.message);
+                if (txnRes.error) throw new Error("Erreur transactions: " + txnRes.error.message);
+                if (riskRes.error) throw new Error("Erreur risk_evaluations: " + riskRes.error.message);
+                if (alertRes.error) throw new Error("Erreur fraud_alerts: " + alertRes.error.message);
+                if (custRes.error) throw new Error("Erreur customers: " + custRes.error.message);
 
                 const txnsData = txnRes.data || [];
                 const riskData = riskRes.data || [];
                 const alertsData = alertRes.data || [];
                 const custData = custRes.data || [];
 
-                // Création des Maps pour la jointure
                 const custMap = {};
                 custData.forEach(c => custMap[c.customer_id] = c);
 
@@ -214,7 +364,6 @@
                 const alertMap = {};
                 alertsData.forEach(a => alertMap[a.transaction_id] = a);
 
-                // Fusion des données en un seul objet
                 allTransactions = txnsData.map(t => {
                     const cust = custMap[t.customer_id] || {};
                     const risk = riskMap[t.transaction_id] || {};
@@ -222,22 +371,15 @@
 
                     return {
                         ...t,
-                        // Identifiant d'affichage
                         display_id: String(t.transaction_id ?? "").slice(0, 10),
-                        
-                        // Informations Client
                         customer_name: cust.full_name || 'Client Inconnu',
                         home_city: cust.home_city || 'Inconnue',
                         phone: cust.phone_number || 'Non renseigné',
-                        
-                        // Données de Risque (depuis risk_evaluations)
                         risk_score: risk.risk_score || 0,
                         risk_level: risk.risk_level || 'LOW',
                         triggered_rules: risk.triggered_rules || [],
                         applied_mitigations: risk.applied_mitigations || [],
                         engine_decision: risk.engine_decision || 'APPROVED',
-                        
-                        // Données d'Alerte (depuis fraud_alerts)
                         severity_db: alert.severity || risk.risk_level || 'MEDIUM',
                         ai_summary: alert.ai_investigation_summary || 'Analyse IA en cours...',
                         ai_action_recommendation: alert.ai_recommendation || 'Vérification manuelle requise.',
@@ -250,13 +392,17 @@
                 allCustomers = custData;
 
                 statusEl.textContent = '✅ Supabase Connectée';
-                statusEl.className = 'px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800';
+                statusEl.className = 'px-2 py-1 rounded-full text-xs font-medium';
+                statusEl.style.background = 'rgba(16,185,129,0.15)';
+                statusEl.style.color = '#34D399';
+                statusEl.style.border = '1px solid rgba(16,185,129,0.3)';
                 
                 updateAll();
             } catch (error) {
                 console.error("Erreur globale :", error);
-                statusEl.textContent = '❌ ' + error.message;
-                statusEl.className = 'px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800';
+                statusEl.textContent = '❌ Erreur';
+                statusEl.style.background = 'rgba(225,29,72,0.15)';
+                statusEl.style.color = '#FB7185';
             }
         }
 
@@ -264,11 +410,12 @@
         function updateAll() {
             updateKPIsOverview();
             updateCharts();
+            updateRulesHistogram();
             updateAlertsTable('ov');
             updateAlertsTable('all');
         }
 
-        // 4. LES 7 KPIs OFFICIELS
+        // 4. KPIs
         function updateKPIsOverview() {
             const txns = allTransactions;
             const alerts = allAlerts;
@@ -285,23 +432,23 @@
             const tauxFP = totalAlertes > 0 ? (fauxPositifs / totalAlertes * 100).toFixed(1) + '%' : '0%';
 
             const kpiData = [
-                { label: '1. Volume Total Analysé', value: volume, icon: 'fa-arrow-right', color: 'text-blue-600' },
-                { label: '2. Taux d\'Anomalies (%)', value: tauxAnomalies, icon: 'fa-exclamation-triangle', color: 'text-amber-500' },
-                { label: '3. Score Moyen de Risque', value: scoreMoyen, icon: 'fa-chart-simple', color: 'text-sky-500' },
-                { label: '4. Alertes Critiques Ouvertes', value: alertesCritiques, icon: 'fa-bell', color: 'text-red-500' },
-                { label: '5. Montant Total sous Risque', value: montantRisque, icon: 'fa-money-bill-wave', color: 'text-red-600' },
-                { label: '6. Temps Moyen de Traitement', value: tempsMoyen, icon: 'fa-clock', color: 'text-emerald-600' },
-                { label: '7. Taux de Faux Positifs (%)', value: tauxFP, icon: 'fa-check-circle', color: 'text-emerald-500' }
+                { label: '1. Volume Total Analysé', value: volume, icon: 'fa-arrow-right', color: '#22D3EE' },
+                { label: '2. Taux d\'Anomalies (%)', value: tauxAnomalies, icon: 'fa-exclamation-triangle', color: '#FBBF24' },
+                { label: '3. Score Moyen de Risque', value: scoreMoyen, icon: 'fa-chart-simple', color: '#60A5FA' },
+                { label: '4. Alertes Critiques Ouvertes', value: alertesCritiques, icon: 'fa-bell', color: '#FB7185' },
+                { label: '5. Montant Total sous Risque', value: montantRisque, icon: 'fa-money-bill-wave', color: '#E11D48' },
+                { label: '6. Temps Moyen de Traitement', value: tempsMoyen, icon: 'fa-clock', color: '#34D399' },
+                { label: '7. Taux de Faux Positifs (%)', value: tauxFP, icon: 'fa-check-circle', color: '#10B981' }
             ];
 
             const grid = document.getElementById('kpi-grid-overview');
             grid.innerHTML = kpiData.map(kpi => `
-                <div class="bg-white rounded-xl shadow p-3 border border-gray-100 card-hover">
+                <div class="kpi-card p-3 card-hover">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">${kpi.label}</span>
-                        <i class="fas ${kpi.icon} ${kpi.color} text-sm"></i>
+                        <span class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-muted);">${kpi.label}</span>
+                        <i class="fas ${kpi.icon} text-sm" style="color: ${kpi.color};"></i>
                     </div>
-                    <div class="mt-1 text-lg font-bold text-gray-800">${kpi.value}</div>
+                    <div class="mt-1 text-lg font-bold" style="color: ${kpi.color};">${kpi.value}</div>
                 </div>`).join('');
         }
 
@@ -311,7 +458,7 @@
             const alertTxns = allTransactions.filter(t => (t.risk_score || 0) >= 66).slice(0, suffix === 'all' ? 50 : 20);
 
             if (alertTxns.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-400 py-4">✅ Aucune alerte</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4" style="color: var(--text-muted);">✅ Aucune alerte</td></tr>`;
                 return;
             }
 
@@ -321,25 +468,25 @@
                 const severity = txn.severity_db || txn.risk_level || 'HIGH';
 
                 let severityBadge = '';
-                if (severity === 'CRITICAL') severityBadge = `<span class="badge-severity bg-red-light">⚠️ Critique</span>`;
-                else severityBadge = `<span class="badge-severity bg-orange-light">⚡ Élevée</span>`;
+                if (severity === 'CRITICAL') severityBadge = `<span class="badge-severity" style="background: rgba(225,29,72,0.15); color: #FB7185; border: 1px solid rgba(225,29,72,0.3);">⚠️ Critique</span>`;
+                else severityBadge = `<span class="badge-severity" style="background: rgba(245,158,11,0.15); color: #FBBF24; border: 1px solid rgba(245,158,11,0.3);">⚡ Élevée</span>`;
 
                 let statusBadge = '';
-                if (decision === 'CONFIRMED_FRAUD') statusBadge = `<span class="text-red-600 font-semibold">Fraude</span>`;
-                else if (decision === 'FALSE_POSITIVE') statusBadge = `<span class="text-emerald-600 font-semibold">Faux Positif</span>`;
-                else statusBadge = `<span class="text-gray-400">En attente</span>`;
+                if (decision === 'CONFIRMED_FRAUD') statusBadge = `<span style="color: #FB7185; font-weight: 600;">Fraude</span>`;
+                else if (decision === 'FALSE_POSITIVE') statusBadge = `<span style="color: #34D399; font-weight: 600;">Faux Positif</span>`;
+                else statusBadge = `<span style="color: var(--text-muted);">En attente</span>`;
 
                 html += `
-                    <tr class="hover:bg-gray-50 cursor-pointer" onclick="openDetail('${txn.transaction_id}')">
+                    <tr class="cursor-pointer" onclick="openDetail('${txn.transaction_id}')">
                         <td class="px-4 py-2 font-mono text-xs">${txn.display_id}</td>
                         <td class="px-4 py-2">${txn.customer_name}</td>
                         <td class="px-4 py-2 font-medium">${txn.amount?.toFixed(0) || 0} ${txn.currency || 'MAD'}</td>
-                        <td class="px-4 py-2 font-bold ${txn.risk_score >= 66 ? 'text-red-600' : 'text-gray-600'}">${txn.risk_score || 0}</td>
+                        <td class="px-4 py-2 font-bold" style="color: ${txn.risk_score >= 66 ? '#FB7185' : '#94A3B8'};">${txn.risk_score || 0}</td>
                         <td class="px-4 py-2">${severityBadge}</td>
                         <td class="px-4 py-2">${statusBadge}</td>
                         <td class="px-4 py-2">
                             <button onclick="event.stopPropagation(); openDetail('${txn.transaction_id}')" 
-                                class="text-indigo-600 hover:text-indigo-900 text-xs font-medium">
+                                class="text-xs font-medium" style="color: #22D3EE;">
                                 <i class="fas fa-chevron-right"></i> Détail
                             </button>
                         </td>
@@ -348,7 +495,7 @@
             tbody.innerHTML = html;
         }
 
-        // 6. GRAPHIQUES
+        // 6. GRAPHIQUES (Ligne + Pie)
         function updateCharts() {
             updateChart('riskChartOverview');
             updatePieChart('pieChartOverview');
@@ -362,13 +509,44 @@
 
             if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
 
+            const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+            gradient.addColorStop(0, 'rgba(34, 211, 238, 0.4)');
+            gradient.addColorStop(1, 'rgba(34, 211, 238, 0)');
+
             chartInstances[canvasId] = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [{ label: 'Score', data: scores, borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.1)', tension: 0.2, fill: true, pointBackgroundColor: scores.map(s => s >= 66 ? '#ef4444' : '#4f46e5') }]
+                    datasets: [{
+                        label: 'Score',
+                        data: scores,
+                        borderColor: '#22D3EE',
+                        backgroundColor: gradient,
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: scores.map(s => s >= 66 ? '#E11D48' : '#22D3EE'),
+                        pointBorderColor: '#0A0F1F',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        borderWidth: 2
+                    }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true, max: 100,
+                            grid: { color: 'rgba(30, 42, 68, 0.5)' },
+                            ticks: { color: '#94A3B8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94A3B8', font: { size: 10 } }
+                        }
+                    }
+                }
             });
         }
 
@@ -384,13 +562,134 @@
 
             if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
             chartInstances[canvasId] = new Chart(ctx, {
-                type: 'pie',
-                data: { labels: ['Faible', 'Moyen', 'Élevé', 'Critique'], datasets: [{ data: [low, medium, high, critical], backgroundColor: ['#22c55e', '#eab308', '#f97316', '#dc2626'] }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                type: 'doughnut',
+                data: {
+                    labels: ['Faible', 'Moyen', 'Élevé', 'Critique'],
+                    datasets: [{
+                        data: [low, medium, high, critical],
+                        backgroundColor: ['#10B981', '#FBBF24', '#F59E0B', '#E11D48'],
+                        borderColor: '#0A0F1F',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: { legend: { display: false } }
+                }
             });
         }
 
-        // 7. MODAL ET ARBITRAGE
+        // ⭐ 7. NOUVEAU : HISTOGRAMME DES 12 RÈGLES DE SCORING
+        function updateRulesHistogram() {
+            const ctx = document.getElementById('rulesHistogram').getContext('2d');
+            
+            // Initialiser les compteurs pour chaque règle
+            const ruleCounts = {};
+            Object.keys(RULE_NAMES).forEach(code => ruleCounts[code] = 0);
+
+            // Parcourir toutes les transactions et compter les règles déclenchées
+            allTransactions.forEach(t => {
+                const rules = t.triggered_rules || [];
+                rules.forEach(r => {
+                    let code = null;
+                    if (typeof r === 'object' && r !== null) {
+                        code = r.code;
+                    } else if (typeof r === 'string') {
+                        // Extraire le code du type "RG-01: Montant extrême"
+                        const match = r.match(/RG-\d+b?/);
+                        code = match ? match[0] : null;
+                    }
+                    if (code && ruleCounts.hasOwnProperty(code)) {
+                        ruleCounts[code]++;
+                    }
+                });
+            });
+
+            // Préparer les données pour le graphique
+            const ruleCodes = Object.keys(RULE_NAMES);
+            const labels = ruleCodes.map(code => `${code}\n${RULE_NAMES[code]}`);
+            const data = ruleCodes.map(code => ruleCounts[code]);
+
+            // Couleurs : pénalités en rouge/orange, mitigations en vert
+            const backgroundColors = ruleCodes.map(code => {
+                if (code === 'RG-11' || code === 'RG-12') return 'rgba(16, 185, 129, 0.8)'; // Vert pour bonus
+                const intensity = ruleCounts[code];
+                if (intensity === 0) return 'rgba(100, 116, 139, 0.3)';
+                return 'rgba(225, 29, 72, 0.8)'; // Rouge pour pénalités
+            });
+
+            const borderColors = ruleCodes.map(code => {
+                if (code === 'RG-11' || code === 'RG-12') return '#10B981';
+                return '#E11D48';
+            });
+
+            if (chartInstances['rulesHistogram']) chartInstances['rulesHistogram'].destroy();
+
+            chartInstances['rulesHistogram'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Déclenchements',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        barPercentage: 0.7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0F172A',
+                            borderColor: '#22D3EE',
+                            borderWidth: 1,
+                            titleColor: '#22D3EE',
+                            bodyColor: '#E2E8F0',
+                            callbacks: {
+                                title: function(context) {
+                                    const code = ruleCodes[context[0].dataIndex];
+                                    return `${code} - ${RULE_NAMES[code]}`;
+                                },
+                                label: function(context) {
+                                    const count = context.parsed.y;
+                                    const type = (ruleCodes[context.dataIndex] === 'RG-11' || ruleCodes[context.dataIndex] === 'RG-12') ? 'Bonus' : 'Pénalité';
+                                    return `${type} • Déclenché ${count} fois`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                stepSize: 1, 
+                                color: '#94A3B8',
+                                precision: 0
+                            },
+                            grid: { color: 'rgba(30, 42, 68, 0.5)' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#94A3B8', 
+                                font: { size: 9 },
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 8. MODAL ET ARBITRAGE
         function openDetail(txnId) {
             const txn = allTransactions.find(t => t.transaction_id === txnId);
             if (!txn) return;
@@ -399,23 +698,23 @@
             const modalContent = document.getElementById('modalContent');
             modalContent.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="space-y-2">
-                        <p><span class="font-semibold">Client :</span> ${txn.customer_name}</p>
-                        <p><span class="font-semibold">Ville :</span> ${txn.home_city}</p>
-                        <p><span class="font-semibold">Canal :</span> ${txn.channel} (${txn.transaction_type || 'N/A'})</p>
-                        <p><span class="font-semibold">RIB Source :</span> ${txn.source_rib || 'N/A'}</p>
+                    <div class="space-y-2 text-sm">
+                        <p><span class="font-semibold" style="color: #22D3EE;">Client :</span> ${txn.customer_name}</p>
+                        <p><span class="font-semibold" style="color: #22D3EE;">Ville :</span> ${txn.home_city}</p>
+                        <p><span class="font-semibold" style="color: #22D3EE;">Canal :</span> ${txn.channel} (${txn.transaction_type || 'N/A'})</p>
+                        <p><span class="font-semibold" style="color: #22D3EE;">RIB Source :</span> ${txn.source_rib || 'N/A'}</p>
                     </div>
-                    <div class="space-y-2">
-                        <p><span class="font-semibold">Montant :</span> ${txn.amount?.toFixed(0) || 0} ${txn.currency || 'MAD'}</p>
-                        <p><span class="font-semibold">Pays :</span> ${txn.location_country || 'MA'}</p>
-                        <p><span class="font-semibold">Score :</span> <span class="text-red-600 font-bold">${txn.risk_score}</span></p>
-                        <p><span class="font-semibold">Statut :</span> ${txn.analyst_decision === 'CONFIRMED_FRAUD' ? 'Fraude confirmée' : txn.analyst_decision === 'FALSE_POSITIVE' ? 'Faux positif' : 'En attente'}</p>
+                    <div class="space-y-2 text-sm">
+                        <p><span class="font-semibold" style="color: #22D3EE;">Montant :</span> ${txn.amount?.toFixed(0) || 0} ${txn.currency || 'MAD'}</p>
+                        <p><span class="font-semibold" style="color: #22D3EE;">Pays :</span> ${txn.location_country || 'MA'}</p>
+                        <p><span class="font-semibold" style="color: #22D3EE;">Score :</span> <span class="font-bold" style="color: #FB7185;">${txn.risk_score}</span></p>
+                        <p><span class="font-semibold" style="color: #22D3EE;">Statut :</span> ${txn.analyst_decision === 'CONFIRMED_FRAUD' ? 'Fraude confirmée' : txn.analyst_decision === 'FALSE_POSITIVE' ? 'Faux positif' : 'En attente'}</p>
                     </div>
                 </div>
-                <div class="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border border-indigo-100">
-                    <p class="font-semibold mb-1"><i class="fas fa-robot mr-1"></i> Diagnostic IA</p>
-                    <p class="text-sm italic">${txn.ai_summary}</p>
-                    <p class="text-sm mt-2 text-indigo-700 font-medium">Action recommandée : ${txn.ai_action_recommendation}</p>
+                <div class="mt-4 p-4 rounded-lg" style="background: linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(6,182,212,0.1) 100%); border: 1px solid rgba(124,58,237,0.3);">
+                    <p class="font-semibold mb-1" style="color: #A78BFA;"><i class="fas fa-robot mr-1"></i> Diagnostic IA</p>
+                    <p class="text-sm italic" style="color: #E2E8F0;">${txn.ai_summary}</p>
+                    <p class="text-sm mt-2 font-medium" style="color: #22D3EE;">Action recommandée : ${txn.ai_action_recommendation}</p>
                 </div>`;
 
             document.getElementById('detailModal').classList.remove('hidden');
@@ -439,13 +738,14 @@
                 updateAlertsTable('ov');
                 updateAlertsTable('all');
                 updateKPIsOverview();
+                updateRulesHistogram();
             }
         }
 
         document.getElementById('modalBtnFraud').addEventListener('click', () => arbitrer('CONFIRMED_FRAUD'));
         document.getElementById('modalBtnFalsePositive').addEventListener('click', () => arbitrer('FALSE_POSITIVE'));
 
-        // 8. NAVIGATION & RECHERCHE
+        // 9. NAVIGATION & RECHERCHE
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -467,13 +767,13 @@
                 (t.customer_name && t.customer_name.toLowerCase().includes(query))
             );
             if (found.length === 0) {
-                resultsDiv.innerHTML = '<p class="text-gray-500">Aucun résultat.</p>';
+                resultsDiv.innerHTML = '<p style="color: var(--text-muted);">Aucun résultat.</p>';
                 return;
             }
-            let html = `<table class="min-w-full divide-y divide-gray-200 text-sm">`;
+            let html = `<table class="min-w-full text-sm">`;
             found.forEach(t => {
-                html += `<tr class="hover:bg-gray-50 cursor-pointer" onclick="openDetail('${t.transaction_id}')">
-                    <td class="px-3 py-2 font-mono">${t.transaction_id}</td>
+                html += `<tr class="cursor-pointer" onclick="openDetail('${t.transaction_id}')">
+                    <td class="px-3 py-2 font-mono" style="color: #22D3EE;">${t.transaction_id}</td>
                     <td class="px-3 py-2">${t.customer_name}</td>
                     <td class="px-3 py-2">${t.amount} ${t.currency}</td>
                 </tr>`;
@@ -482,39 +782,32 @@
             resultsDiv.innerHTML = html;
         });
 
-        // ================================================================
-        // 9. GÉNÉRATION DE RAPPORTS PDF
-        // ================================================================
-
-        // --- Fonction utilitaire : dessine l'en-tête du PDF ---
+        // 10. GÉNÉRATION DE RAPPORTS PDF
         function drawPdfHeader(doc, title, subtitle) {
-            // Bandeau indigo
-            doc.setFillColor(79, 70, 229);
+            doc.setFillColor(10, 15, 31);
             doc.rect(0, 0, 210, 25, 'F');
-            // Titre
-            doc.setTextColor(255, 255, 255);
+            doc.setFillColor(6, 182, 212);
+            doc.rect(0, 24, 210, 1, 'F');
+            doc.setTextColor(34, 211, 238);
             doc.setFontSize(18);
             doc.setFont("helvetica", "bold");
             doc.text("BankShield AI", 14, 12);
             doc.setFontSize(10);
+            doc.setTextColor(200, 200, 200);
             doc.setFont("helvetica", "normal");
             doc.text(title, 14, 19);
-            // Sous-titre à droite
             doc.setFontSize(9);
             doc.text(subtitle, 196, 12, { align: 'right' });
             doc.text(new Date().toLocaleString('fr-FR'), 196, 19, { align: 'right' });
-            // Reset couleur texte
             doc.setTextColor(0, 0, 0);
         }
 
-        // --- RAPPORT GLOBAL : Tous les clients avec leur résumé d'alertes ---
         function generateGlobalReport() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
             drawPdfHeader(doc, "Rapport Global des Alertes", "Confidentiel - Usage interne");
 
-            // Regrouper les transactions par client
             const clientMap = {};
             allTransactions.forEach(t => {
                 if (!clientMap[t.customer_id]) {
@@ -532,68 +825,40 @@
                 }
             });
 
-            // Statistiques globales
             const totalClients = Object.keys(clientMap).length;
             const totalAlerts = allTransactions.filter(t => (t.risk_score || 0) >= 66).length;
             const totalFraud = allAlerts.filter(a => a.analyst_decision === 'CONFIRMED_FRAUD').length;
             const totalFP = allAlerts.filter(a => a.analyst_decision === 'FALSE_POSITIVE').length;
 
-            // Bloc de synthèse
             doc.setFontSize(11);
             doc.setFont("helvetica", "bold");
             doc.text("Synthèse Générale", 14, 35);
             doc.setFont("helvetica", "normal");
             doc.setFontSize(10);
             doc.text(`Clients analysés : ${totalClients}`, 14, 42);
-            doc.text(`Alertes totales (score >= 66) : ${totalAlerts}`, 80, 42);
+            doc.text(`Alertes totales : ${totalAlerts}`, 80, 42);
             doc.text(`Fraudes confirmées : ${totalFraud}`, 145, 42);
             doc.text(`Faux positifs : ${totalFP}`, 14, 48);
             doc.text(`Taux de faux positifs : ${totalAlerts > 0 ? ((totalFP / totalAlerts) * 100).toFixed(1) : 0}%`, 80, 48);
 
-            // Tableau par client
             const rows = Object.values(clientMap).map(c => {
                 const maxScore = c.alerts.length > 0 ? Math.max(...c.alerts.map(a => a.risk_score || 0)) : 0;
                 const fraudCount = c.alerts.filter(a => a.analyst_decision === 'CONFIRMED_FRAUD').length;
                 const fpCount = c.alerts.filter(a => a.analyst_decision === 'FALSE_POSITIVE').length;
                 const pendingCount = c.alerts.filter(a => a.analyst_decision === 'PENDING').length;
                 const montantRisque = c.alerts.reduce((s, a) => s + (a.amount || 0), 0);
-
-                return [
-                    c.customer_id,
-                    c.name,
-                    c.city,
-                    c.transactions.length,
-                    c.alerts.length,
-                    maxScore,
-                    fraudCount,
-                    fpCount,
-                    pendingCount,
-                    montantRisque.toFixed(0) + ' MAD'
-                ];
+                return [c.customer_id, c.name, c.city, c.transactions.length, c.alerts.length, maxScore, fraudCount, fpCount, pendingCount, montantRisque.toFixed(0) + ' MAD'];
             });
 
             doc.autoTable({
                 startY: 55,
                 head: [['ID Client', 'Nom', 'Ville', 'Txns', 'Alertes', 'Score Max', 'Fraudes', 'Faux Pos.', 'En Attente', 'Montant Risque']],
                 body: rows,
-                theme: 'striped',
-                headStyles: { fillColor: [79, 70, 229], fontSize: 8 },
-                bodyStyles: { fontSize: 8 },
-                columnStyles: {
-                    0: { cellWidth: 22 },
-                    1: { cellWidth: 30 },
-                    2: { cellWidth: 22 },
-                    3: { cellWidth: 12, halign: 'center' },
-                    4: { cellWidth: 14, halign: 'center' },
-                    5: { cellWidth: 16, halign: 'center' },
-                    6: { cellWidth: 16, halign: 'center' },
-                    7: { cellWidth: 16, halign: 'center' },
-                    8: { cellWidth: 18, halign: 'center' },
-                    9: { cellWidth: 22, halign: 'right' }
-                }
+                theme: 'grid',
+                headStyles: { fillColor: [6, 182, 212], fontSize: 8, textColor: [255, 255, 255] },
+                bodyStyles: { fontSize: 8 }
             });
 
-            // Pied de page
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
@@ -605,12 +870,10 @@
             doc.save(`BankShield_Rapport_Global_${new Date().toISOString().slice(0, 10)}.pdf`);
         }
 
-        // --- RAPPORT CLIENT : Détail complet d'un client ---
         function generateClientReport(customerId) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            // Récupérer toutes les transactions du client
             const clientTxns = allTransactions.filter(t => t.customer_id === customerId);
             if (clientTxns.length === 0) {
                 alert('Aucune donnée pour ce client.');
@@ -622,7 +885,6 @@
 
             drawPdfHeader(doc, `Rapport Client : ${clientInfo.customer_name}`, "Confidentiel - AML");
 
-            // Bloc informations client
             doc.setFontSize(11);
             doc.setFont("helvetica", "bold");
             doc.text("Informations Client", 14, 35);
@@ -633,7 +895,6 @@
             doc.text(`Ville : ${clientInfo.home_city}`, 14, 54);
             doc.text(`Téléphone : ${clientInfo.phone}`, 100, 42);
 
-            // Statistiques du client
             const maxScore = clientAlerts.length > 0 ? Math.max(...clientAlerts.map(a => a.risk_score || 0)) : 0;
             const totalAmountAtRisk = clientAlerts.reduce((s, a) => s + (a.amount || 0), 0);
             const fraudCount = clientAlerts.filter(a => a.analyst_decision === 'CONFIRMED_FRAUD').length;
@@ -643,41 +904,30 @@
             doc.text("Synthèse", 14, 66);
             doc.setFont("helvetica", "normal");
             doc.text(`Transactions totales : ${clientTxns.length}`, 14, 73);
-            doc.text(`Alertes (score >= 66) : ${clientAlerts.length}`, 80, 73);
-            doc.text(`Score maximum atteint : ${maxScore}`, 145, 73);
+            doc.text(`Alertes : ${clientAlerts.length}`, 80, 73);
+            doc.text(`Score max : ${maxScore}`, 145, 73);
             doc.text(`Montant sous risque : ${totalAmountAtRisk.toFixed(0)} MAD`, 14, 79);
-            doc.text(`Fraudes confirmées : ${fraudCount}`, 100, 79);
+            doc.text(`Fraudes : ${fraudCount}`, 100, 79);
             doc.text(`Faux positifs : ${fpCount}`, 145, 79);
 
-            // Tableau des transactions suspectes
             doc.setFont("helvetica", "bold");
             doc.text("Transactions Suspectes", 14, 92);
 
             const txnRows = clientAlerts.map(t => {
                 const date = new Date(t.timestamp).toLocaleString('fr-FR').slice(0, 16);
-                const decisionLabel = t.analyst_decision === 'CONFIRMED_FRAUD' ? 'FRAUDE' :
-                    t.analyst_decision === 'FALSE_POSITIVE' ? 'Faux Positif' : 'En attente';
-                return [
-                    t.transaction_id || 'N/A',
-                    date,
-                    t.amount?.toFixed(0) + ' ' + (t.currency || 'MAD'),
-                    t.channel || 'N/A',
-                    t.risk_score || 0,
-                    t.severity_db || 'HIGH',
-                    decisionLabel
-                ];
+                const decisionLabel = t.analyst_decision === 'CONFIRMED_FRAUD' ? 'FRAUDE' : t.analyst_decision === 'FALSE_POSITIVE' ? 'Faux Positif' : 'En attente';
+                return [t.transaction_id || 'N/A', date, t.amount?.toFixed(0) + ' ' + (t.currency || 'MAD'), t.channel || 'N/A', t.risk_score || 0, t.severity_db || 'HIGH', decisionLabel];
             });
 
             doc.autoTable({
                 startY: 97,
                 head: [['ID Transaction', 'Date', 'Montant', 'Canal', 'Score', 'Sévérité', 'Décision']],
                 body: txnRows.length > 0 ? txnRows : [['—', '—', '—', '—', '—', '—', 'Aucune alerte']],
-                theme: 'striped',
-                headStyles: { fillColor: [220, 38, 38], fontSize: 9 },
+                theme: 'grid',
+                headStyles: { fillColor: [225, 29, 72], fontSize: 9, textColor: [255, 255, 255] },
                 bodyStyles: { fontSize: 8 }
             });
 
-            // Détail de chaque alerte avec diagnostic IA
             let yPos = doc.lastAutoTable.finalY + 15;
 
             clientAlerts.forEach((t, idx) => {
@@ -686,7 +936,7 @@
                     yPos = 20;
                 }
 
-                doc.setFillColor(245, 245, 255);
+                doc.setFillColor(240, 245, 255);
                 doc.rect(14, yPos - 5, 182, 45, 'F');
 
                 doc.setFont("helvetica", "bold");
@@ -700,7 +950,6 @@
                 doc.text(`Montant : ${t.amount?.toFixed(0)} ${t.currency || 'MAD'} | Canal : ${t.channel} | Pays : ${t.location_country || 'MA'}`, 18, yPos + 9);
                 doc.text(`Score : ${t.risk_score} | Sévérité : ${t.severity_db || 'HIGH'}`, 18, yPos + 15);
 
-                // Diagnostic IA
                 doc.setFont("helvetica", "italic");
                 const aiSummary = t.ai_summary || 'Analyse IA non disponible.';
                 const splitSummary = doc.splitTextToSize(`Diagnostic IA : ${aiSummary}`, 175);
@@ -711,7 +960,6 @@
                 const actionText = doc.splitTextToSize(`Action recommandée : ${t.ai_action_recommendation || 'N/A'}`, 175);
                 doc.text(actionText, 18, yPos + 30);
 
-                // Règles déclenchées
                 if (t.triggered_rules && t.triggered_rules.length > 0) {
                     doc.setFont("helvetica", "normal");
                     doc.setTextColor(100, 100, 100);
@@ -725,7 +973,6 @@
                 yPos += 52;
             });
 
-            // Pied de page
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
@@ -737,7 +984,6 @@
             doc.save(`BankShield_Rapport_${clientInfo.customer_name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
         }
 
-        // --- Event Listeners pour les boutons rapports ---
         document.getElementById('btnGlobalReport').addEventListener('click', generateGlobalReport);
 
         document.getElementById('modalBtnReport').addEventListener('click', () => {
