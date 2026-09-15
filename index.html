@@ -34,9 +34,9 @@
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        .card-hover:hover { 
-            transform: translateY(-2px); 
-            transition: all 0.2s ease; 
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: all 0.2s ease;
             box-shadow: 0 10px 30px -5px rgba(6, 182, 212, 0.3);
             border-color: var(--cyan) !important;
         }
@@ -56,7 +56,6 @@
 
         .badge-severity { padding: 3px 12px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
 
-        /* Dark badges */
         .bg-green-light { background-color: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
         .bg-red-light { background-color: rgba(225, 29, 72, 0.15); color: #FB7185; border: 1px solid rgba(225, 29, 72, 0.3); }
         .bg-orange-light { background-color: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
@@ -65,28 +64,24 @@
         .modal-content { transition: transform 0.3s ease; transform: scale(0.95); }
         .modal-open .modal-content { transform: scale(1); }
 
-        .tab-btn { 
-            transition: all 0.2s ease; 
-            border-bottom: 3px solid transparent; 
-            padding-bottom: 8px; 
-            cursor: pointer; 
+        .tab-btn {
+            transition: all 0.2s ease;
+            border-bottom: 3px solid transparent;
+            padding-bottom: 8px;
+            cursor: pointer;
             color: var(--text-muted);
         }
-        .tab-btn.active { 
-            border-bottom-color: var(--cyan); 
-            color: var(--cyan-light); 
+        .tab-btn.active {
+            border-bottom-color: var(--cyan);
+            color: var(--cyan-light);
             font-weight: 600;
             text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
         }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* Neon title */
-        .neon-title {
-            text-shadow: 0 0 15px rgba(34, 211, 238, 0.6);
-        }
+        .neon-title { text-shadow: 0 0 15px rgba(34, 211, 238, 0.6); }
 
-        /* KPI Cards */
         .kpi-card {
             background: linear-gradient(145deg, #111827 0%, #0F172A 100%);
             border: 1px solid var(--border-subtle);
@@ -102,31 +97,45 @@
             background: linear-gradient(90deg, var(--cyan), var(--violet));
         }
 
-        /* Table dark */
         table thead tr { background-color: #0F172A !important; }
         table thead th { color: var(--text-muted) !important; border-bottom: 1px solid var(--border-subtle) !important; }
         table tbody tr { border-bottom: 1px solid var(--border-subtle) !important; }
         table tbody tr:hover { background-color: rgba(6, 182, 212, 0.05) !important; }
         table tbody td { color: #E2E8F0 !important; }
 
-        /* Header */
         header {
             background: linear-gradient(180deg, #0F172A 0%, #0A0F1F 100%) !important;
             border-bottom: 1px solid var(--border-subtle) !important;
         }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0A0F1F; }
         ::-webkit-scrollbar-thumb { background: #1E2A44; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
 
-        /* Gradient text */
         .gradient-text {
             background: linear-gradient(135deg, #22D3EE 0%, #7C3AED 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        /* Spinner pour le bouton rafraîchir */
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .fa-spin { animation: spin 1s linear infinite; }
+
+        /* Indicateur de rafraîchissement auto */
+        .pulse-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10B981;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
         }
     </style>
 </head>
@@ -142,9 +151,18 @@
                 <span class="text-2xl font-bold neon-title" style="color: #22D3EE;">BankShield AI</span>
                 <span class="text-xs font-semibold px-3 py-1 rounded-full" style="background: rgba(6,182,212,0.15); color: #22D3EE; border: 1px solid rgba(6,182,212,0.3);">Dashboard</span>
             </div>
-            <div class="flex items-center space-x-4 text-sm" style="color: var(--text-muted);">
+            <div class="flex items-center space-x-3 text-sm" style="color: var(--text-muted);">
+                <span class="flex items-center">
+                    <span class="pulse-dot mr-2"></span>
+                    <span class="text-xs" id="autoRefreshIndicator">Auto-refresh (5s)</span>
+                </span>
                 <span><i class="fas fa-user-shield mr-1"></i> Admin</span>
-                <button id="btnGlobalReport" class="px-3 py-1 rounded-lg text-xs font-medium transition" style="background: linear-gradient(135deg, #06B6D4 0%, #7C3AED 100%); color: white;">
+                <button id="btnRefresh" class="px-3 py-1 rounded-lg text-xs font-medium transition" 
+                    style="background: rgba(6,182,212,0.15); color: #22D3EE; border: 1px solid rgba(6,182,212,0.3);">
+                    <i class="fas fa-sync-alt mr-1"></i> Rafraîchir
+                </button>
+                <button id="btnGlobalReport" class="px-3 py-1 rounded-lg text-xs font-medium transition" 
+                    style="background: linear-gradient(135deg, #06B6D4 0%, #7C3AED 100%); color: white;">
                     <i class="fas fa-file-pdf mr-1"></i> Rapport Global
                 </button>
                 <span id="connection-status" class="px-2 py-1 rounded-full text-xs font-medium" style="background: rgba(245,158,11,0.15); color: #FBBF24;">Connexion...</span>
@@ -165,7 +183,7 @@
         <!-- ONGLET 1 : VUE D'ENSEMBLE -->
         <div id="tab-overview" class="tab-content active">
             <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6" id="kpi-grid-overview"></section>
-            
+
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div class="lg:col-span-2 bank-card p-4">
                     <h2 class="text-base font-semibold mb-3" style="color: var(--text-primary);">
@@ -187,7 +205,7 @@
                 </div>
             </div>
 
-            <!-- ⭐ NOUVEAU : HISTOGRAMME DES 12 RÈGLES DE SCORING -->
+            <!-- HISTOGRAMME DES 12 RÈGLES DE SCORING -->
             <div class="bank-card-glow p-4 mb-6">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-base font-semibold" style="color: var(--text-primary);">
@@ -262,10 +280,10 @@
             </h2>
             <div class="bank-card p-4">
                 <div class="flex flex-wrap gap-4 mb-4">
-                    <input type="text" id="searchInput" placeholder="ID transaction ou nom client" 
-                        class="flex-1 min-w-[200px] px-4 py-2 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500" 
+                    <input type="text" id="searchInput" placeholder="ID transaction ou nom client"
+                        class="flex-1 min-w-[200px] px-4 py-2 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
                         style="background: #0F172A; border: 1px solid #1E2A44; color: white;">
-                    <button id="searchBtn" class="px-4 py-2 rounded-lg text-sm font-medium transition" 
+                    <button id="searchBtn" class="px-4 py-2 rounded-lg text-sm font-medium transition"
                         style="background: linear-gradient(135deg, #06B6D4 0%, #2563EB 100%); color: white;">
                         <i class="fas fa-search mr-1"></i> Rechercher
                     </button>
@@ -304,12 +322,16 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
+        // ============================================================
         // 1. CONFIGURATION SUPABASE
+        // ============================================================
         const SUPABASE_URL = 'https://dayemaufmjhwhoelmctf.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_SptSF_lMowhhTLWsmy33Aw_b_8A176_';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // ⭐ Mapping des codes de règles aux noms lisibles
+        // ============================================================
+        // 2. MAPPING DES RÈGLES
+        // ============================================================
         const RULE_NAMES = {
             'RG-01': 'Montant extrême',
             'RG-01b': 'Montant inhabituel',
@@ -326,17 +348,32 @@
             'RG-12': 'TPE Carte + PIN'
         };
 
+        // ============================================================
+        // 3. ÉTAT GLOBAL
+        // ============================================================
         let allTransactions = [];
         let allAlerts = [];
         let allCustomers = [];
         let selectedAlertId = null;
         let chartInstances = {};
+        let refreshInterval = null;
+        let isLoading = false;
 
-        // 2. CHARGEMENT DES DONNÉES
+        // ============================================================
+        // 4. CHARGEMENT DES DONNÉES
+        // ============================================================
         async function loadData() {
+            if (isLoading) {
+                console.log('⏳ Chargement déjà en cours, ignoré.');
+                return;
+            }
+            isLoading = true;
+
             const statusEl = document.getElementById('connection-status');
             statusEl.textContent = 'Connexion...';
-            
+            statusEl.style.background = 'rgba(245,158,11,0.15)';
+            statusEl.style.color = '#FBBF24';
+
             try {
                 const [txnRes, riskRes, alertRes, custRes] = await Promise.all([
                     supabaseClient.from('transactions').select('*').order('timestamp', { ascending: false }).limit(100),
@@ -355,15 +392,24 @@
                 const alertsData = alertRes.data || [];
                 const custData = custRes.data || [];
 
+                // Map des clients
                 const custMap = {};
                 custData.forEach(c => custMap[c.customer_id] = c);
 
+                // Map des évaluations de risque (une par transaction)
                 const riskMap = {};
                 riskData.forEach(r => riskMap[r.transaction_id] = r);
 
+                // ✅ FIX : Map des alertes — GARDER LA PLUS RÉCENTE par transaction
                 const alertMap = {};
-                alertsData.forEach(a => alertMap[a.transaction_id] = a);
+                alertsData.forEach(a => {
+                    const existing = alertMap[a.transaction_id];
+                    if (!existing || a.alert_id > existing.alert_id) {
+                        alertMap[a.transaction_id] = a;
+                    }
+                });
 
+                // Fusion des données
                 allTransactions = txnsData.map(t => {
                     const cust = custMap[t.customer_id] || {};
                     const risk = riskMap[t.transaction_id] || {};
@@ -392,21 +438,26 @@
                 allCustomers = custData;
 
                 statusEl.textContent = '✅ Supabase Connectée';
-                statusEl.className = 'px-2 py-1 rounded-full text-xs font-medium';
                 statusEl.style.background = 'rgba(16,185,129,0.15)';
                 statusEl.style.color = '#34D399';
                 statusEl.style.border = '1px solid rgba(16,185,129,0.3)';
-                
+
                 updateAll();
+
             } catch (error) {
-                console.error("Erreur globale :", error);
+                console.error("❌ Erreur globale :", error);
                 statusEl.textContent = '❌ Erreur';
                 statusEl.style.background = 'rgba(225,29,72,0.15)';
                 statusEl.style.color = '#FB7185';
+                statusEl.style.border = '1px solid rgba(225,29,72,0.3)';
+            } finally {
+                isLoading = false;
             }
         }
 
-        // 3. MISE À JOUR GLOBALE
+        // ============================================================
+        // 5. MISE À JOUR GLOBALE
+        // ============================================================
         function updateAll() {
             updateKPIsOverview();
             updateCharts();
@@ -415,7 +466,9 @@
             updateAlertsTable('all');
         }
 
-        // 4. KPIs
+        // ============================================================
+        // 6. KPIs
+        // ============================================================
         function updateKPIsOverview() {
             const txns = allTransactions;
             const alerts = allAlerts;
@@ -426,7 +479,7 @@
             const scoreMoyen = volume > 0 ? (txns.reduce((s, t) => s + (t.risk_score || 0), 0) / volume).toFixed(1) : '0';
             const alertesCritiques = alerts.filter(a => a.severity === 'CRITICAL' && a.analyst_decision === 'PENDING').length;
             const montantRisque = txns.filter(t => t.risk_score >= 65).reduce((s, t) => s + (t.amount || 0), 0).toFixed(0) + ' MAD';
-            const tempsMoyen = '2.3s'; 
+            const tempsMoyen = '2.3s';
             const totalAlertes = alerts.length;
             const fauxPositifs = alerts.filter(a => a.analyst_decision === 'FALSE_POSITIVE').length;
             const tauxFP = totalAlertes > 0 ? (fauxPositifs / totalAlertes * 100).toFixed(1) + '%' : '0%';
@@ -452,7 +505,9 @@
                 </div>`).join('');
         }
 
-        // 5. TABLEAUX DES ALERTES
+        // ============================================================
+        // 7. TABLEAUX DES ALERTES
+        // ============================================================
         function updateAlertsTable(suffix) {
             const tbody = document.getElementById(`alerts-table-body-${suffix}`);
             const alertTxns = allTransactions.filter(t => (t.risk_score || 0) >= 66).slice(0, suffix === 'all' ? 50 : 20);
@@ -485,7 +540,7 @@
                         <td class="px-4 py-2">${severityBadge}</td>
                         <td class="px-4 py-2">${statusBadge}</td>
                         <td class="px-4 py-2">
-                            <button onclick="event.stopPropagation(); openDetail('${txn.transaction_id}')" 
+                            <button onclick="event.stopPropagation(); openDetail('${txn.transaction_id}')"
                                 class="text-xs font-medium" style="color: #22D3EE;">
                                 <i class="fas fa-chevron-right"></i> Détail
                             </button>
@@ -495,19 +550,27 @@
             tbody.innerHTML = html;
         }
 
-        // 6. GRAPHIQUES (Ligne + Pie)
+        // ============================================================
+        // 8. GRAPHIQUES
+        // ============================================================
         function updateCharts() {
             updateChart('riskChartOverview');
             updatePieChart('pieChartOverview');
         }
 
         function updateChart(canvasId) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
             const sorted = [...allTransactions].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).slice(-20);
             const labels = sorted.map(t => { const d = new Date(t.timestamp); return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; });
             const scores = sorted.map(t => t.risk_score || 0);
 
-            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            // ✅ FIX : Nettoyer l'instance précédente
+            if (chartInstances[canvasId]) {
+                chartInstances[canvasId].destroy();
+                delete chartInstances[canvasId];
+            }
 
             const gradient = ctx.createLinearGradient(0, 0, 0, 200);
             gradient.addColorStop(0, 'rgba(34, 211, 238, 0.4)');
@@ -534,6 +597,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 0 },
                     plugins: { legend: { display: false } },
                     scales: {
                         y: {
@@ -551,7 +615,9 @@
         }
 
         function updatePieChart(canvasId) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
             let low = 0, medium = 0, high = 0, critical = 0;
             allTransactions.forEach(t => {
                 if (t.risk_score >= 85 || t.risk_level === 'CRITICAL') critical++;
@@ -560,7 +626,11 @@
                 else low++;
             });
 
-            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            if (chartInstances[canvasId]) {
+                chartInstances[canvasId].destroy();
+                delete chartInstances[canvasId];
+            }
+
             chartInstances[canvasId] = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
@@ -575,21 +645,24 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 0 },
                     cutout: '65%',
                     plugins: { legend: { display: false } }
                 }
             });
         }
 
-        // ⭐ 7. NOUVEAU : HISTOGRAMME DES 12 RÈGLES DE SCORING
+        // ============================================================
+        // 9. HISTOGRAMME DES 12 RÈGLES
+        // ============================================================
         function updateRulesHistogram() {
-            const ctx = document.getElementById('rulesHistogram').getContext('2d');
-            
-            // Initialiser les compteurs pour chaque règle
+            const canvas = document.getElementById('rulesHistogram');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
             const ruleCounts = {};
             Object.keys(RULE_NAMES).forEach(code => ruleCounts[code] = 0);
 
-            // Parcourir toutes les transactions et compter les règles déclenchées
             allTransactions.forEach(t => {
                 const rules = t.triggered_rules || [];
                 rules.forEach(r => {
@@ -597,7 +670,6 @@
                     if (typeof r === 'object' && r !== null) {
                         code = r.code;
                     } else if (typeof r === 'string') {
-                        // Extraire le code du type "RG-01: Montant extrême"
                         const match = r.match(/RG-\d+b?/);
                         code = match ? match[0] : null;
                     }
@@ -607,17 +679,14 @@
                 });
             });
 
-            // Préparer les données pour le graphique
             const ruleCodes = Object.keys(RULE_NAMES);
             const labels = ruleCodes.map(code => `${code}\n${RULE_NAMES[code]}`);
             const data = ruleCodes.map(code => ruleCounts[code]);
 
-            // Couleurs : pénalités en rouge/orange, mitigations en vert
             const backgroundColors = ruleCodes.map(code => {
-                if (code === 'RG-11' || code === 'RG-12') return 'rgba(16, 185, 129, 0.8)'; // Vert pour bonus
-                const intensity = ruleCounts[code];
-                if (intensity === 0) return 'rgba(100, 116, 139, 0.3)';
-                return 'rgba(225, 29, 72, 0.8)'; // Rouge pour pénalités
+                if (code === 'RG-11' || code === 'RG-12') return 'rgba(16, 185, 129, 0.8)';
+                if (ruleCounts[code] === 0) return 'rgba(100, 116, 139, 0.3)';
+                return 'rgba(225, 29, 72, 0.8)';
             });
 
             const borderColors = ruleCodes.map(code => {
@@ -625,7 +694,10 @@
                 return '#E11D48';
             });
 
-            if (chartInstances['rulesHistogram']) chartInstances['rulesHistogram'].destroy();
+            if (chartInstances['rulesHistogram']) {
+                chartInstances['rulesHistogram'].destroy();
+                delete chartInstances['rulesHistogram'];
+            }
 
             chartInstances['rulesHistogram'] = new Chart(ctx, {
                 type: 'bar',
@@ -644,6 +716,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 0 },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
@@ -668,28 +741,21 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            ticks: { 
-                                stepSize: 1, 
-                                color: '#94A3B8',
-                                precision: 0
-                            },
+                            ticks: { stepSize: 1, color: '#94A3B8', precision: 0 },
                             grid: { color: 'rgba(30, 42, 68, 0.5)' }
                         },
                         x: {
                             grid: { display: false },
-                            ticks: { 
-                                color: '#94A3B8', 
-                                font: { size: 9 },
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
+                            ticks: { color: '#94A3B8', font: { size: 9 }, maxRotation: 45, minRotation: 45 }
                         }
                     }
                 }
             });
         }
 
-        // 8. MODAL ET ARBITRAGE
+        // ============================================================
+        // 10. MODAL ET ARBITRAGE
+        // ============================================================
         function openDetail(txnId) {
             const txn = allTransactions.find(t => t.transaction_id === txnId);
             if (!txn) return;
@@ -745,7 +811,9 @@
         document.getElementById('modalBtnFraud').addEventListener('click', () => arbitrer('CONFIRMED_FRAUD'));
         document.getElementById('modalBtnFalsePositive').addEventListener('click', () => arbitrer('FALSE_POSITIVE'));
 
-        // 9. NAVIGATION & RECHERCHE
+        // ============================================================
+        // 11. NAVIGATION & RECHERCHE
+        // ============================================================
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -762,8 +830,8 @@
             const query = document.getElementById('searchInput').value.trim().toLowerCase();
             const resultsDiv = document.getElementById('searchResults');
             if (!query) return;
-            const found = allTransactions.filter(t => 
-                t.transaction_id.toLowerCase().includes(query) || 
+            const found = allTransactions.filter(t =>
+                t.transaction_id.toLowerCase().includes(query) ||
                 (t.customer_name && t.customer_name.toLowerCase().includes(query))
             );
             if (found.length === 0) {
@@ -782,7 +850,9 @@
             resultsDiv.innerHTML = html;
         });
 
-        // 10. GÉNÉRATION DE RAPPORTS PDF
+        // ============================================================
+        // 12. RAPPORTS PDF
+        // ============================================================
         function drawPdfHeader(doc, title, subtitle) {
             doc.setFillColor(10, 15, 31);
             doc.rect(0, 0, 210, 25, 'F');
@@ -993,7 +1063,56 @@
             }
         });
 
-        document.addEventListener('DOMContentLoaded', loadData);
+        // ============================================================
+        // 13. RAFRAÎCHISSEMENT AUTOMATIQUE (FIX)
+        // ============================================================
+        function startAutoRefresh() {
+            // Nettoyer l'intervalle précédent s'il existe
+            if (refreshInterval) clearInterval(refreshInterval);
+
+            // Rafraîchir toutes les 5 secondes
+            refreshInterval = setInterval(() => {
+                if (!document.hidden) { // Ne pas rafraîchir si l'onglet est caché
+                    console.log('🔄 Auto-refresh...');
+                    loadData();
+                }
+            }, 5000);
+
+            console.log('✅ Auto-refresh démarré (5s)');
+        }
+
+        // ============================================================
+        // 14. BOUTON RAFRAÎCHIR MANUEL
+        // ============================================================
+        document.getElementById('btnRefresh').addEventListener('click', () => {
+            const icon = document.querySelector('#btnRefresh i');
+            icon.classList.add('fa-spin');
+            loadData().finally(() => {
+                setTimeout(() => icon.classList.remove('fa-spin'), 500);
+            });
+        });
+
+        // ============================================================
+        // 15. NETTOYAGE À LA FERMETURE
+        // ============================================================
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                console.log('🧹 Auto-refresh arrêté.');
+            }
+            // Détruire toutes les instances Chart.js
+            Object.values(chartInstances).forEach(chart => {
+                if (chart && typeof chart.destroy === 'function') chart.destroy();
+            });
+        });
+
+        // ============================================================
+        // 16. INITIALISATION
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            startAutoRefresh();
+        });
     </script>
 </body>
 </html>
