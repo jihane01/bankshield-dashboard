@@ -64,6 +64,24 @@
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.6; transform: scale(1.2); }
         }
+
+        /* Notification toast */
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body class="font-sans antialiased">
@@ -118,7 +136,7 @@
                 <h2 class="text-base font-semibold mb-3" style="color: var(--text-primary);">
                     <i class="fas fa-ruler-combined mr-2" style="color: #22D3EE;"></i> Fréquence des 12 Règles de Scoring
                 </h2>
-                <div style="height:260px; position:relative;"><canvas id="rulesHistogram"></canvas></div>
+                <div style="height:280px; position:relative;"><canvas id="rulesHistogram"></canvas></div>
             </div>
 
             <section class="bank-card p-4">
@@ -247,6 +265,21 @@
         let newAlertIds = new Set();
 
         // ============================================================
+        // NOTIFICATION TOAST
+        // ============================================================
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fas fa-check-circle mr-2"></i> ${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ============================================================
         // CHARGEMENT DES DONNÉES
         // ============================================================
         async function loadData(silent = false) {
@@ -282,7 +315,6 @@
                 const txnMap = {};
                 txnsData.forEach(t => txnMap[t.transaction_id] = t);
 
-                // Détecter les nouvelles alertes pour flash visuel
                 const previousAlertIds = new Set(allEnrichedAlerts.map(a => a.alert_id));
                 if (previousAlertIds.size > 0) {
                     alertsData.forEach(a => {
@@ -318,6 +350,8 @@
                         customer_name: cust.full_name || 'Client Inconnu',
                         home_city: cust.home_city || 'Inconnue',
                         phone: cust.phone_number || 'Non renseigné',
+                        cin: cust.cin || 'N/A',
+                        primary_rib: cust.primary_rib || 'N/A',
                         risk_score: risk.risk_score || 0,
                         risk_level: risk.risk_level || a.severity || 'HIGH',
                         triggered_rules: risk.triggered_rules || [],
@@ -326,19 +360,24 @@
                     };
                 });
 
-                allTransactions = txnsData.map(t => {
-                    const cust = custMap[t.customer_id] || {};
-                    const risk = riskMap[t.transaction_id] || {};
-                    return {
-                        ...t,
-                        display_id: String(t.transaction_id ?? "").slice(0, 12),
-                        customer_name: cust.full_name || 'Client Inconnu',
-                        home_city: cust.home_city || 'Inconnue',
-                        risk_score: risk.risk_score || 0,
-                        risk_level: risk.risk_level || 'LOW',
-                        triggered_rules: risk.triggered_rules || []
-                    };
-                });
+                allTransactions = txnsData
+                    .filter(t => {
+                        const risk = riskMap[t.transaction_id];
+                        return risk && typeof risk.risk_score === 'number';
+                    })
+                    .map(t => {
+                        const cust = custMap[t.customer_id] || {};
+                        const risk = riskMap[t.transaction_id] || {};
+                        return {
+                            ...t,
+                            display_id: String(t.transaction_id ?? "").slice(0, 12),
+                            customer_name: cust.full_name || 'Client Inconnu',
+                            home_city: cust.home_city || 'Inconnue',
+                            risk_score: risk.risk_score || 0,
+                            risk_level: risk.risk_level || 'LOW',
+                            triggered_rules: risk.triggered_rules || []
+                        };
+                    });
 
                 allAlerts = alertsData;
                 allCustomers = custData;
@@ -346,10 +385,9 @@
                 updateAll();
 
                 if (!silent) {
-                    console.log(`✅ Dashboard chargé : ${alertsData.length} alertes, ${txnsData.length} transactions`);
+                    console.log(`✅ Dashboard chargé : ${alertsData.length} alertes, ${allTransactions.length} transactions évaluées`);
                 }
 
-                // Nettoyer le set de nouvelles alertes après 3s
                 setTimeout(() => newAlertIds.clear(), 3000);
 
             } catch (error) {
@@ -464,8 +502,21 @@
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            const sorted = [...allTransactions].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).slice(-20);
-            const labels = sorted.map(t => { const d = new Date(t.timestamp); return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; });
+
+            const sorted = [...allTransactions]
+                .filter(t => t.timestamp && !isNaN(new Date(t.timestamp).getTime()))
+                .sort((a, b) => {
+                    const ta = new Date(a.timestamp).getTime();
+                    const tb = new Date(b.timestamp).getTime();
+                    if (ta !== tb) return ta - tb;
+                    return (a.id || 0) - (b.id || 0);
+                })
+                .slice(-20);
+
+            const labels = sorted.map(t => {
+                const d = new Date(t.timestamp);
+                return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            });
             const scores = sorted.map(t => t.risk_score || 0);
 
             if (chartInstances[canvasId]) { chartInstances[canvasId].destroy(); delete chartInstances[canvasId]; }
@@ -545,21 +596,75 @@
             });
 
             const ruleCodes = Object.keys(RULE_NAMES);
-            const labels = ruleCodes.map(c => `${c}\n${RULE_NAMES[c]}`);
+            const labels = ruleCodes;
             const data = ruleCodes.map(c => ruleCounts[c]);
             const bgColors = ruleCodes.map(c => (c === 'RG-11' || c === 'RG-12') ? 'rgba(16, 185, 129, 0.8)' : (ruleCounts[c] === 0 ? 'rgba(100, 116, 139, 0.3)' : 'rgba(225, 29, 72, 0.8)'));
+            const borderColors = ruleCodes.map(c => (c === 'RG-11' || c === 'RG-12') ? '#10B981' : '#E11D48');
 
             if (chartInstances['rulesHistogram']) { chartInstances['rulesHistogram'].destroy(); delete chartInstances['rulesHistogram']; }
 
             chartInstances['rulesHistogram'] = new Chart(ctx, {
                 type: 'bar',
-                data: { labels: labels, datasets: [{ label: 'Déclenchements', data: data, backgroundColor: bgColors, borderRadius: 6, barPercentage: 0.7 }] },
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        label: 'Déclenchements', 
+                        data: data, 
+                        backgroundColor: bgColors, 
+                        borderColor: borderColors,
+                        borderWidth: 2,
+                        borderRadius: 6, 
+                        barPercentage: 0.7 
+                    }] 
+                },
                 options: {
-                    responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
-                    plugins: { legend: { display: false } },
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    animation: { duration: 300 },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0F172A',
+                            borderColor: '#22D3EE',
+                            borderWidth: 1,
+                            titleColor: '#22D3EE',
+                            bodyColor: '#E2E8F0',
+                            padding: 10,
+                            callbacks: {
+                                title: function(context) {
+                                    const code = ruleCodes[context[0].dataIndex];
+                                    return `${code} — ${RULE_NAMES[code]}`;
+                                },
+                                label: function(context) {
+                                    const count = context.parsed.y;
+                                    const code = ruleCodes[context.dataIndex];
+                                    const type = (code === 'RG-11' || code === 'RG-12') ? '🟢 Bonus (atténuation)' : '🔴 Pénalité (risque)';
+                                    return [`${type}`, `Déclenché ${count} fois`];
+                                }
+                            }
+                        }
+                    },
                     scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1, color: '#94A3B8' }, grid: { color: 'rgba(30, 42, 68, 0.5)' } },
-                        x: { grid: { display: false }, ticks: { color: '#94A3B8', font: { size: 9 }, maxRotation: 45, minRotation: 45 } }
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { stepSize: 1, color: '#94A3B8', precision: 0 }, 
+                            grid: { color: 'rgba(30, 42, 68, 0.5)' },
+                            title: {
+                                display: true,
+                                text: 'Nombre de déclenchements',
+                                color: '#94A3B8',
+                                font: { size: 11 }
+                            }
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { 
+                                color: '#94A3B8', 
+                                font: { size: 11, weight: '600' },
+                                maxRotation: 0,
+                                minRotation: 0
+                            }
+                        }
                     }
                 }
             });
@@ -621,6 +726,7 @@
                 document.getElementById('modalArbitrageMessage').textContent = `✅ Décision enregistrée.`;
                 document.getElementById('modalBtnFraud').disabled = true;
                 document.getElementById('modalBtnFalsePositive').disabled = true;
+                showToast('Décision enregistrée dans Supabase');
                 updateAlertsTable('ov');
                 updateAlertsTable('all');
                 updateKPIsOverview();
@@ -632,6 +738,193 @@
 
         document.getElementById('modalBtnFraud').addEventListener('click', () => arbitrer('CONFIRMED_FRAUD'));
         document.getElementById('modalBtnFalsePositive').addEventListener('click', () => arbitrer('FALSE_POSITIVE'));
+
+        // ============================================================
+        // ⭐ GÉNÉRATION DU RAPPORT PDF CLIENT (FONCTION CORRIGÉE)
+        // ============================================================
+        function drawPdfHeader(doc, title, subtitle) {
+            doc.setFillColor(10, 15, 31);
+            doc.rect(0, 0, 210, 25, 'F');
+            doc.setFillColor(6, 182, 212);
+            doc.rect(0, 24, 210, 1, 'F');
+            doc.setTextColor(34, 211, 238);
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "bold");
+            doc.text("BankShield AI", 14, 12);
+            doc.setFontSize(10);
+            doc.setTextColor(200, 200, 200);
+            doc.setFont("helvetica", "normal");
+            doc.text(title, 14, 19);
+            doc.setFontSize(9);
+            doc.text(subtitle, 196, 12, { align: 'right' });
+            doc.text(new Date().toLocaleString('fr-FR'), 196, 19, { align: 'right' });
+            doc.setTextColor(0, 0, 0);
+        }
+
+        function generateClientReport(alertId) {
+            console.log('📄 Génération du rapport pour alert_id:', alertId);
+            
+            const alert = allEnrichedAlerts.find(a => a.alert_id === alertId);
+            if (!alert) {
+                console.error('❌ Alerte non trouvée:', alertId);
+                showToast('Alerte non trouvée', 'error');
+                return;
+            }
+
+            // Récupérer TOUTES les transactions et alertes du même client
+            const customerId = alert.customer_id;
+            const customerAlerts = allEnrichedAlerts.filter(a => a.customer_id === customerId);
+            const customerTxns = allTransactions.filter(t => t.customer_id === customerId);
+
+            console.log(`📊 Client ${customerId} : ${customerAlerts.length} alertes, ${customerTxns.length} transactions`);
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            drawPdfHeader(doc, `Rapport Client : ${alert.customer_name}`, "Confidentiel - AML");
+
+            // === INFORMATIONS CLIENT ===
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.text("Informations Client", 14, 35);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text(`ID Client : ${customerId}`, 14, 42);
+            doc.text(`Nom : ${alert.customer_name}`, 14, 48);
+            doc.text(`Ville : ${alert.home_city}`, 14, 54);
+            doc.text(`Téléphone : ${alert.phone}`, 100, 42);
+            doc.text(`CIN : ${alert.cin || 'N/A'}`, 100, 48);
+            doc.text(`RIB : ${String(alert.primary_rib || 'N/A').slice(0, 20)}...`, 100, 54);
+
+            // === SYNTHÈSE ===
+            const maxScore = customerAlerts.length > 0 ? Math.max(...customerAlerts.map(a => a.risk_score || 0)) : 0;
+            const totalAmountAtRisk = customerAlerts.reduce((s, a) => s + (a.amount || 0), 0);
+            const fraudCount = customerAlerts.filter(a => a.analyst_decision === 'CONFIRMED_FRAUD').length;
+            const fpCount = customerAlerts.filter(a => a.analyst_decision === 'FALSE_POSITIVE').length;
+            const pendingCount = customerAlerts.filter(a => a.analyst_decision === 'PENDING').length;
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(11);
+            doc.text("Synthèse", 14, 66);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text(`Transactions totales : ${customerTxns.length}`, 14, 73);
+            doc.text(`Alertes : ${customerAlerts.length}`, 80, 73);
+            doc.text(`Score max : ${maxScore}`, 145, 73);
+            doc.text(`Montant sous risque : ${totalAmountAtRisk.toFixed(0)} MAD`, 14, 79);
+            doc.text(`Fraudes confirmées : ${fraudCount}`, 100, 79);
+            doc.text(`Faux positifs : ${fpCount}`, 145, 79);
+            doc.text(`En attente : ${pendingCount}`, 14, 85);
+
+            // === TABLEAU DES ALERTES ===
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(11);
+            doc.text("Transactions Suspectes", 14, 98);
+
+            const txnRows = customerAlerts.map(t => {
+                const date = new Date(t.timestamp).toLocaleString('fr-FR').slice(0, 16);
+                const decisionLabel = t.analyst_decision === 'CONFIRMED_FRAUD' ? 'FRAUDE' : 
+                                      t.analyst_decision === 'FALSE_POSITIVE' ? 'Faux Positif' : 'En attente';
+                return [
+                    `#${t.alert_id}`,
+                    String(t.transaction_id).slice(0, 15),
+                    date,
+                    `${t.amount?.toFixed(0)} ${t.currency || 'MAD'}`,
+                    t.risk_score,
+                    decisionLabel
+                ];
+            });
+
+            doc.autoTable({
+                startY: 103,
+                head: [['Alerte', 'Transaction', 'Date', 'Montant', 'Score', 'Décision']],
+                body: txnRows.length > 0 ? txnRows : [['—', '—', '—', '—', '—', 'Aucune alerte']],
+                theme: 'grid',
+                headStyles: { fillColor: [225, 29, 72], fontSize: 9, textColor: [255, 255, 255] },
+                bodyStyles: { fontSize: 8 },
+                columnStyles: {
+                    0: { cellWidth: 15 },
+                    1: { cellWidth: 35 },
+                    2: { cellWidth: 35 },
+                    3: { cellWidth: 25 },
+                    4: { cellWidth: 15 },
+                    5: { cellWidth: 25 }
+                }
+            });
+
+            // === DÉTAILS DE CHAQUE ALERTE ===
+            let yPos = doc.lastAutoTable.finalY + 15;
+
+            customerAlerts.forEach((t, idx) => {
+                if (yPos > 240) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                doc.setFillColor(240, 245, 255);
+                doc.rect(14, yPos - 5, 182, 45, 'F');
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10);
+                doc.setTextColor(220, 38, 38);
+                doc.text(`Alerte #${t.alert_id} - ${t.transaction_id}`, 18, yPos + 2);
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(9);
+                doc.text(`Montant : ${t.amount?.toFixed(0)} ${t.currency || 'MAD'} | Canal : ${t.channel} | Pays : ${t.location_country}`, 18, yPos + 9);
+                doc.text(`Score : ${t.risk_score} | Sévérité : ${t.severity}`, 18, yPos + 15);
+
+                doc.setFont("helvetica", "italic");
+                const aiSummary = (t.ai_summary || 'Analyse IA non disponible.').slice(0, 200);
+                const splitSummary = doc.splitTextToSize(`Diagnostic IA : ${aiSummary}`, 175);
+                doc.text(splitSummary, 18, yPos + 22);
+
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(79, 70, 229);
+                const actionText = doc.splitTextToSize(`Action : ${t.ai_action_recommendation || 'N/A'}`, 175);
+                doc.text(actionText, 18, yPos + 30);
+
+                if (t.triggered_rules && t.triggered_rules.length > 0) {
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(100, 100, 100);
+                    doc.setFontSize(8);
+                    const rulesText = t.triggered_rules.map(r => typeof r === 'object' ? `${r.code}: ${r.name}` : String(r)).join(' | ');
+                    const splitRules = doc.splitTextToSize(`Règles : ${rulesText}`, 175);
+                    doc.text(splitRules, 18, yPos + 38);
+                }
+
+                doc.setTextColor(0, 0, 0);
+                yPos += 52;
+            });
+
+            // === FOOTER ===
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(`BankShield AI - Rapport Client ${customerId} - Page ${i}/${pageCount}`, 105, 290, { align: 'center' });
+            }
+
+            // === SAUVEGARDE ===
+            const fileName = `BankShield_Rapport_${alert.customer_name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+            doc.save(fileName);
+            console.log('✅ Rapport PDF généré :', fileName);
+            showToast(`Rapport PDF généré pour ${alert.customer_name}`);
+        }
+
+        // ============================================================
+        // LISTENER DU BOUTON RAPPORT — ⭐ CORRIGÉ
+        // ============================================================
+        document.getElementById('modalBtnReport').addEventListener('click', () => {
+            console.log('🖱️ Clic sur bouton Rapport Client');
+            if (!selectedAlertId) {
+                showToast('Aucune alerte sélectionnée', 'error');
+                return;
+            }
+            generateClientReport(selectedAlertId);
+        });
 
         // ============================================================
         // NAVIGATION & RECHERCHE
@@ -672,7 +965,7 @@
         });
 
         // ============================================================
-        // SUPABASE REALTIME — ÉCOUTE DES NOUVELLES DONNÉES
+        // SUPABASE REALTIME
         // ============================================================
         function updateRealtimeStatus(status) {
             const statusEl = document.getElementById('realtime-status');
@@ -714,7 +1007,6 @@
 
             realtimeChannel = supabaseClient
                 .channel('bankshield-realtime')
-
                 .on('postgres_changes',
                     { event: 'INSERT', schema: 'public', table: 'fraud_alerts' },
                     (payload) => {
