@@ -44,10 +44,26 @@
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0A0F1F; }
         ::-webkit-scrollbar-thumb { background: #1E2A44; border-radius: 4px; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .fa-spin { animation: spin 1s linear infinite; }
-        .pulse-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10B981; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        @keyframes flashNew {
+            0% { background-color: rgba(16, 185, 129, 0.3); }
+            100% { background-color: transparent; }
+        }
+        .new-alert-flash { animation: flashNew 2s ease-out; }
+
+        .live-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10B981;
+            box-shadow: 0 0 8px #10B981;
+            animation: livePulse 2s infinite;
+        }
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
     </style>
 </head>
 <body class="font-sans antialiased">
@@ -61,20 +77,12 @@
                 <span class="text-2xl font-bold neon-title" style="color: #22D3EE;">BankShield AI</span>
                 <span class="text-xs font-semibold px-3 py-1 rounded-full" style="background: rgba(6,182,212,0.15); color: #22D3EE; border: 1px solid rgba(6,182,212,0.3);">Dashboard</span>
             </div>
-            <div class="flex items-center space-x-2 text-sm" style="color: var(--text-muted);">
-                <span class="flex items-center">
-                    <span class="pulse-dot mr-2"></span>
-                    <span class="text-xs">Auto 5s</span>
+            <div class="flex items-center space-x-3 text-sm" style="color: var(--text-muted);">
+                <span><i class="fas fa-user-shield mr-1"></i> Admin</span>
+                <span id="realtime-status" class="flex items-center px-2 py-1 rounded-full text-xs font-medium" style="background: rgba(245,158,11,0.15); color: #FBBF24; border: 1px solid rgba(245,158,11,0.3);">
+                    <span class="live-dot mr-2" id="realtime-dot" style="background: #FBBF24; box-shadow: 0 0 8px #FBBF24;"></span>
+                    <span id="realtime-text">Connexion...</span>
                 </span>
-                <button id="btnRefresh" class="px-3 py-1 rounded-lg text-xs font-medium transition" 
-                    style="background: rgba(6,182,212,0.15); color: #22D3EE; border: 1px solid rgba(6,182,212,0.3);">
-                    <i class="fas fa-sync-alt mr-1"></i> Rafraîchir
-                </button>
-                <button id="btnGlobalReport" class="px-3 py-1 rounded-lg text-xs font-medium transition" 
-                    style="background: linear-gradient(135deg, #06B6D4 0%, #7C3AED 100%); color: white;">
-                    <i class="fas fa-file-pdf mr-1"></i> Rapport
-                </button>
-                <span id="connection-status" class="px-2 py-1 rounded-full text-xs font-medium" style="background: rgba(245,158,11,0.15); color: #FBBF24;">Connexion...</span>
             </div>
         </div>
         <div class="max-w-7xl mx-auto px-4">
@@ -228,33 +236,26 @@
         // ============================================================
         // ÉTAT GLOBAL
         // ============================================================
-        // allAlerts = SOURCE DE VÉRITÉ (alertes brutes de fraud_alerts)
-        // allTransactions = données enrichies (txn + client + risk)
-        // allEnrichedAlerts = alertes avec infos txn/client/risk déjà jointes
         let allAlerts = [];
         let allTransactions = [];
         let allEnrichedAlerts = [];
         let allCustomers = [];
         let selectedAlertId = null;
         let chartInstances = {};
-        let refreshInterval = null;
         let isLoading = false;
+        let realtimeChannel = null;
+        let newAlertIds = new Set();
 
         // ============================================================
-        // CHARGEMENT DES DONNÉES (LOGIQUE INVERSÉE)
+        // CHARGEMENT DES DONNÉES
         // ============================================================
-        async function loadData() {
+        async function loadData(silent = false) {
             if (isLoading) return;
             isLoading = true;
 
-            const statusEl = document.getElementById('connection-status');
-            statusEl.textContent = 'Connexion...';
-
             try {
-                console.log('🔄 Chargement depuis Supabase...');
+                if (!silent) console.log('🔄 Chargement initial depuis Supabase...');
 
-                // ⭐ On charge d'abord les ALERTES (source de vérité)
-                // Puis les tables liées sans limite
                 const [alertRes, txnRes, riskRes, custRes] = await Promise.all([
                     supabaseClient.from('fraud_alerts').select('*').order('alert_id', { ascending: false }),
                     supabaseClient.from('transactions').select('*'),
@@ -272,9 +273,6 @@
                 const riskData = riskRes.data || [];
                 const custData = custRes.data || [];
 
-                console.log(`📊 Reçu: ${alertsData.length} alertes, ${txnsData.length} txns, ${riskData.length} évals, ${custData.length} clients`);
-
-                // Maps pour lookup rapide
                 const custMap = {};
                 custData.forEach(c => custMap[c.customer_id] = c);
 
@@ -284,15 +282,22 @@
                 const txnMap = {};
                 txnsData.forEach(t => txnMap[t.transaction_id] = t);
 
-                // ⭐ ENRICHIR CHAQUE ALERTE avec les données txn/client/risk
-                // On part des alertes, pas des transactions !
+                // Détecter les nouvelles alertes pour flash visuel
+                const previousAlertIds = new Set(allEnrichedAlerts.map(a => a.alert_id));
+                if (previousAlertIds.size > 0) {
+                    alertsData.forEach(a => {
+                        if (!previousAlertIds.has(a.alert_id)) {
+                            newAlertIds.add(a.alert_id);
+                        }
+                    });
+                }
+
                 allEnrichedAlerts = alertsData.map(a => {
                     const txn = txnMap[a.transaction_id] || {};
                     const cust = custMap[a.customer_id] || {};
                     const risk = riskMap[a.transaction_id] || {};
 
                     return {
-                        // Données de l'alerte (prioritaires)
                         alert_id: a.alert_id,
                         transaction_id: a.transaction_id,
                         customer_id: a.customer_id,
@@ -301,8 +306,6 @@
                         ai_action_recommendation: a.ai_recommendation || 'Vérification manuelle requise.',
                         analyst_decision: a.analyst_decision || 'PENDING',
                         created_at: a.created_at,
-
-                        // Données enrichies de la transaction
                         amount: txn.amount || 0,
                         currency: txn.currency || 'MAD',
                         channel: txn.channel || 'N/A',
@@ -312,13 +315,9 @@
                         location_city: txn.location_city || 'N/A',
                         source_rib: txn.source_rib || 'N/A',
                         display_id: String(a.transaction_id || "").slice(0, 12),
-
-                        // Données enrichies du client
                         customer_name: cust.full_name || 'Client Inconnu',
                         home_city: cust.home_city || 'Inconnue',
                         phone: cust.phone_number || 'Non renseigné',
-
-                        // Données enrichies du risk
                         risk_score: risk.risk_score || 0,
                         risk_level: risk.risk_level || a.severity || 'HIGH',
                         triggered_rules: risk.triggered_rules || [],
@@ -327,7 +326,6 @@
                     };
                 });
 
-                // Pour les KPIs et graphiques, on utilise TOUTES les transactions
                 allTransactions = txnsData.map(t => {
                     const cust = custMap[t.customer_id] || {};
                     const risk = riskMap[t.transaction_id] || {};
@@ -345,27 +343,22 @@
                 allAlerts = alertsData;
                 allCustomers = custData;
 
-                statusEl.textContent = `✅ Connectée (${alertsData.length} alertes)`;
-                statusEl.style.background = 'rgba(16,185,129,0.15)';
-                statusEl.style.color = '#34D399';
-                statusEl.style.border = '1px solid rgba(16,185,129,0.3)';
-
                 updateAll();
-                console.log(`✅ Dashboard chargé : ${allEnrichedAlerts.length} alertes affichables`);
+
+                if (!silent) {
+                    console.log(`✅ Dashboard chargé : ${alertsData.length} alertes, ${txnsData.length} transactions`);
+                }
+
+                // Nettoyer le set de nouvelles alertes après 3s
+                setTimeout(() => newAlertIds.clear(), 3000);
 
             } catch (error) {
                 console.error("❌ Erreur :", error);
-                statusEl.textContent = '❌ Erreur';
-                statusEl.style.background = 'rgba(225,29,72,0.15)';
-                statusEl.style.color = '#FB7185';
             } finally {
                 isLoading = false;
             }
         }
 
-        // ============================================================
-        // MISE À JOUR GLOBALE
-        // ============================================================
         function updateAll() {
             updateKPIsOverview();
             updateCharts();
@@ -375,7 +368,7 @@
         }
 
         // ============================================================
-        // KPIs (basés sur les transactions)
+        // KPIs
         // ============================================================
         function updateKPIsOverview() {
             const txns = allTransactions;
@@ -413,12 +406,10 @@
         }
 
         // ============================================================
-        // TABLEAU DES ALERTES — utilise allEnrichedAlerts (source de vérité)
+        // TABLEAU DES ALERTES
         // ============================================================
         function updateAlertsTable(suffix) {
             const tbody = document.getElementById(`alerts-table-body-${suffix}`);
-            
-            // ⭐ On utilise DIRECTEMENT les alertes enrichies (toutes)
             const alertsToShow = allEnrichedAlerts.slice(0, suffix === 'all' ? 200 : 20);
 
             if (alertsToShow.length === 0) {
@@ -430,6 +421,7 @@
             alertsToShow.forEach(alert => {
                 const decision = alert.analyst_decision || 'PENDING';
                 const severity = alert.severity || 'HIGH';
+                const isNew = newAlertIds.has(alert.alert_id);
 
                 let severityBadge = '';
                 if (severity === 'CRITICAL') severityBadge = `<span class="badge-severity" style="background: rgba(225,29,72,0.15); color: #FB7185; border: 1px solid rgba(225,29,72,0.3);">⚠️ Critique</span>`;
@@ -442,7 +434,7 @@
                 else statusBadge = `<span style="color: var(--text-muted);">En attente</span>`;
 
                 html += `
-                    <tr class="cursor-pointer" onclick="openDetail('${alert.transaction_id}')">
+                    <tr class="cursor-pointer ${isNew ? 'new-alert-flash' : ''}" onclick="openDetail(${alert.alert_id})">
                         <td class="px-4 py-2 font-mono text-xs" style="color: #22D3EE;">#${alert.alert_id}</td>
                         <td class="px-4 py-2 font-mono text-xs">${alert.display_id}</td>
                         <td class="px-4 py-2">${alert.customer_name}</td>
@@ -450,7 +442,7 @@
                         <td class="px-4 py-2">${severityBadge}</td>
                         <td class="px-4 py-2">${statusBadge}</td>
                         <td class="px-4 py-2">
-                            <button onclick="event.stopPropagation(); openDetail('${alert.transaction_id}')"
+                            <button onclick="event.stopPropagation(); openDetail(${alert.alert_id})"
                                 class="text-xs font-medium" style="color: #22D3EE;">
                                 <i class="fas fa-chevron-right"></i> Détail
                             </button>
@@ -494,7 +486,7 @@
                     }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false, animation: { duration: 0 },
+                    responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
                     plugins: { legend: { display: false } },
                     scales: {
                         y: { beginAtZero: true, max: 100, grid: { color: 'rgba(30, 42, 68, 0.5)' }, ticks: { color: '#94A3B8' } },
@@ -528,7 +520,7 @@
                         borderColor: '#0A0F1F', borderWidth: 3
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, animation: { duration: 0 }, cutout: '65%', plugins: { legend: { display: false } } }
+                options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, cutout: '65%', plugins: { legend: { display: false } } }
             });
         }
 
@@ -563,7 +555,7 @@
                 type: 'bar',
                 data: { labels: labels, datasets: [{ label: 'Déclenchements', data: data, backgroundColor: bgColors, borderRadius: 6, barPercentage: 0.7 }] },
                 options: {
-                    responsive: true, maintainAspectRatio: false, animation: { duration: 0 },
+                    responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
                     plugins: { legend: { display: false } },
                     scales: {
                         y: { beginAtZero: true, ticks: { stepSize: 1, color: '#94A3B8' }, grid: { color: 'rgba(30, 42, 68, 0.5)' } },
@@ -576,11 +568,10 @@
         // ============================================================
         // MODAL
         // ============================================================
-        function openDetail(txnId) {
-            // Chercher dans les alertes enrichies d'abord
-            const alert = allEnrichedAlerts.find(a => a.transaction_id === txnId);
+        function openDetail(alertId) {
+            const alert = allEnrichedAlerts.find(a => a.alert_id === alertId);
             if (!alert) return;
-            selectedAlertId = txnId;
+            selectedAlertId = alertId;
 
             document.getElementById('modalContent').innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -615,11 +606,10 @@
 
         async function arbitrer(decision) {
             if (!selectedAlertId) return;
-            const alert = allEnrichedAlerts.find(a => a.transaction_id === selectedAlertId);
+            const alert = allEnrichedAlerts.find(a => a.alert_id === selectedAlertId);
             if (!alert) return;
 
             try {
-                // Mise à jour dans Supabase
                 const { error } = await supabaseClient
                     .from('fraud_alerts')
                     .update({ analyst_decision: decision, decided_at: new Date().toISOString() })
@@ -670,8 +660,9 @@
             }
             let html = `<table class="min-w-full text-sm">`;
             found.forEach(a => {
-                html += `<tr class="cursor-pointer" onclick="openDetail('${a.transaction_id}')">
-                    <td class="px-3 py-2 font-mono" style="color: #22D3EE;">${a.transaction_id}</td>
+                html += `<tr class="cursor-pointer" onclick="openDetail(${a.alert_id})">
+                    <td class="px-3 py-2 font-mono" style="color: #22D3EE;">#${a.alert_id}</td>
+                    <td class="px-3 py-2 font-mono text-xs">${a.transaction_id}</td>
                     <td class="px-3 py-2">${a.customer_name}</td>
                     <td class="px-3 py-2">${a.amount} ${a.currency}</td>
                 </tr>`;
@@ -681,29 +672,104 @@
         });
 
         // ============================================================
-        // BOUTONS
+        // SUPABASE REALTIME — ÉCOUTE DES NOUVELLES DONNÉES
         // ============================================================
-        document.getElementById('btnRefresh').addEventListener('click', () => {
-            const icon = document.querySelector('#btnRefresh i');
-            icon.classList.add('fa-spin');
-            loadData().finally(() => setTimeout(() => icon.classList.remove('fa-spin'), 500));
-        });
+        function updateRealtimeStatus(status) {
+            const statusEl = document.getElementById('realtime-status');
+            const textEl = document.getElementById('realtime-text');
+            const dotEl = document.getElementById('realtime-dot');
 
-        function startAutoRefresh() {
-            if (refreshInterval) clearInterval(refreshInterval);
-            refreshInterval = setInterval(() => {
-                if (!document.hidden) loadData();
-            }, 5000);
+            if (status === 'connected') {
+                textEl.textContent = 'LIVE';
+                statusEl.style.background = 'rgba(16,185,129,0.15)';
+                statusEl.style.color = '#34D399';
+                statusEl.style.border = '1px solid rgba(16,185,129,0.3)';
+                dotEl.style.background = '#10B981';
+                dotEl.style.boxShadow = '0 0 8px #10B981';
+            } else if (status === 'connecting') {
+                textEl.textContent = 'Connexion...';
+                statusEl.style.background = 'rgba(245,158,11,0.15)';
+                statusEl.style.color = '#FBBF24';
+                statusEl.style.border = '1px solid rgba(245,158,11,0.3)';
+                dotEl.style.background = '#FBBF24';
+                dotEl.style.boxShadow = '0 0 8px #FBBF24';
+            } else {
+                textEl.textContent = 'Hors ligne';
+                statusEl.style.background = 'rgba(225,29,72,0.15)';
+                statusEl.style.color = '#FB7185';
+                statusEl.style.border = '1px solid rgba(225,29,72,0.3)';
+                dotEl.style.background = '#E11D48';
+                dotEl.style.boxShadow = '0 0 8px #E11D48';
+            }
         }
 
+        function subscribeToRealtime() {
+            if (realtimeChannel) {
+                supabaseClient.removeChannel(realtimeChannel);
+                realtimeChannel = null;
+            }
+
+            updateRealtimeStatus('connecting');
+            console.log('📡 Abonnement au Realtime...');
+
+            realtimeChannel = supabaseClient
+                .channel('bankshield-realtime')
+
+                .on('postgres_changes',
+                    { event: 'INSERT', schema: 'public', table: 'fraud_alerts' },
+                    (payload) => {
+                        console.log('🚨 NOUVELLE ALERTE reçue :', payload.new);
+                        newAlertIds.add(payload.new.alert_id);
+                        loadData(true);
+                    }
+                )
+                .on('postgres_changes',
+                    { event: 'UPDATE', schema: 'public', table: 'fraud_alerts' },
+                    (payload) => {
+                        console.log('✏️ Alerte mise à jour :', payload.new);
+                        loadData(true);
+                    }
+                )
+                .on('postgres_changes',
+                    { event: 'INSERT', schema: 'public', table: 'transactions' },
+                    (payload) => {
+                        console.log('💰 Nouvelle transaction :', payload.new);
+                        loadData(true);
+                    }
+                )
+                .on('postgres_changes',
+                    { event: 'INSERT', schema: 'public', table: 'risk_evaluations' },
+                    (payload) => {
+                        console.log('📊 Nouvelle évaluation :', payload.new);
+                        loadData(true);
+                    }
+                )
+                .subscribe((status) => {
+                    console.log('📡 Realtime status:', status);
+                    if (status === 'SUBSCRIBED') {
+                        updateRealtimeStatus('connected');
+                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                        updateRealtimeStatus('offline');
+                    }
+                });
+        }
+
+        // ============================================================
+        // CLEANUP
+        // ============================================================
         window.addEventListener('beforeunload', () => {
-            if (refreshInterval) clearInterval(refreshInterval);
+            if (realtimeChannel) {
+                supabaseClient.removeChannel(realtimeChannel);
+            }
             Object.values(chartInstances).forEach(c => { if (c && c.destroy) c.destroy(); });
         });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            loadData();
-            startAutoRefresh();
+        // ============================================================
+        // INITIALISATION
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadData();
+            subscribeToRealtime();
         });
     </script>
 </body>
